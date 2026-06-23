@@ -1,0 +1,2226 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sherlock-GPT | OSINT & Investigação Digital</title>
+    <!-- Lucide Icons para suporte visual -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Variáveis de Tema Forense/Cibernético */
+        :root {
+            --bg-main: #0a0f1d;
+            --bg-sidebar: #0d1527;
+            --bg-[#080d1a]: #080d1a;
+            --bg-terminal: #080d1a;
+            --bg-header: #0e172a;
+            --bg-card: #0c1324;
+            --bg-input: #060a14;
+            --border-color: #1e293b;
+            --cyan-accent: #06b6d4;
+            --cyan-hover: #0891b2;
+            --cyan-glow: rgba(6, 182, 212, 0.15);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --danger-color: #f43f5e;
+            --warning-color: #fbbf24;
+            --success-color: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            /* Aplicação do zoom global de 85% solicitado */
+            zoom: 85%;
+        }
+
+        /* Top Banner & Status bar */
+        header {
+            background-color: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            background-color: rgba(6, 182, 212, 0.1);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--cyan-accent);
+        }
+
+        .brand-text h1 {
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 0.05em;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-badge {
+            font-size: 10px;
+            background-color: var(--danger-color);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: sans-serif;
+            animation: pulse-animation 2s infinite;
+        }
+
+        .brand-text p {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #0f172a;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            animation: pulse-animation 1.5s infinite;
+        }
+
+        .alert-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            color: var(--cyan-accent);
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        /* Workspace Layout */
+        .workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 320px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px;
+            gap: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            background-color: rgba(6, 182, 212, 0.1);
+            color: var(--cyan-accent);
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: var(--text-main);
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .tab-pane {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .tab-pane.active {
+            display: flex;
+        }
+
+        .sidebar-section-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--text-muted);
+            font-family: monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .osint-link-btn {
+            color: var(--cyan-accent);
+            background: none;
+            border: none;
+            font-size: 10px;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .module-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .module-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .module-card:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .module-card i {
+            flex-shrink: 0;
+        }
+
+        .module-card-text h4 {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-main);
+            font-weight: bold;
+        }
+
+        .module-card-text p {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .parameters-card {
+            background-color: #050812;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .param-value {
+            color: var(--cyan-accent);
+        }
+
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            background-color: #0b101d;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-main);
+            font-family: monospace;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .action-btn.btn-danger {
+            color: var(--danger-color);
+            border-color: rgba(244, 63, 94, 0.2);
+        }
+
+        .action-btn.btn-danger:hover {
+            background-color: rgba(244, 63, 94, 0.1);
+        }
+
+        /* Terminal Main Area */
+        main {
+            flex: 1;
+            background-color: var(--bg-terminal);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background-color: #0b1222;
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .terminal-title {
+            color: var(--cyan-accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-ping {
+            width: 6px;
+            height: 6px;
+            background-color: var(--cyan-accent);
+            border-radius: 50%;
+            animation: ping-animation 1s infinite;
+        }
+
+        .terminal-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-osint-hub {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--cyan-accent);
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-osint-hub:hover {
+            background-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-icon-only {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .btn-icon-only:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        /* Messages Container */
+        .logs-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .log-row {
+            display: flex;
+            gap: 16px;
+            max-width: 85%;
+        }
+
+        .log-row.row-user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .log-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .row-user .log-avatar {
+            background-color: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: var(--cyan-accent);
+        }
+
+        .row-ai .log-avatar {
+            background-color: #1e293b;
+            color: var(--text-main);
+        }
+
+        .log-bubble {
+            flex: 1;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-card);
+        }
+
+        .row-user .log-bubble {
+            background-color: #0f213a;
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .log-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;
+            font-size: 10px;
+            color: #64748b;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        /* Formatação de Texto e Markdown */
+        .log-body {
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .row-user .log-body {
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            color: #e0f2fe;
+        }
+
+        /* Estilos Markdown customizados para os relatórios da IA */
+        .markdown-content h2 {
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: bold;
+            color: #f1f5f9;
+            border-bottom: 1px solid #1e293b;
+            padding-bottom: 6px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .markdown-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .markdown-content p {
+            margin-bottom: 12px;
+            color: #cbd5e1;
+        }
+
+        .markdown-content strong {
+            color: var(--cyan-accent);
+            font-weight: 600;
+        }
+
+        .markdown-content ul {
+            list-style: none;
+            margin-bottom: 12px;
+            padding-left: 16px;
+        }
+
+        .markdown-content li {
+            position: relative;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+        }
+
+        .markdown-content li::before {
+            content: "•";
+            color: var(--cyan-accent);
+            font-weight: bold;
+            position: absolute;
+            left: -12px;
+        }
+
+        /* Caixa de Alerta de Segurança */
+        .security-alert-box {
+            margin: 16px 0;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .security-alert-box.danger {
+            background-color: rgba(244, 63, 94, 0.05);
+            border-color: rgba(244, 63, 94, 0.3);
+            color: var(--danger-color);
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.05);
+            animation: pulse-border 2s infinite ease-in-out;
+        }
+
+        .security-alert-box.suspicious {
+            background-color: rgba(251, 191, 36, 0.05);
+            border-color: rgba(251, 191, 36, 0.3);
+            color: var(--warning-color);
+        }
+
+        .security-alert-box.secure {
+            background-color: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.3);
+            color: var(--success-color);
+        }
+
+        /* Loading Indicator */
+        .loading-row {
+            display: flex;
+            gap: 16px;
+            max-width: 500px;
+        }
+
+        .loading-spinner-box {
+            width: 32px;
+            height: 32px;
+            border-radius: 4px;
+            background-color: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--cyan-accent);
+            animation: pulse-animation 1s infinite alternate;
+        }
+
+        .loading-spinner {
+            animation: spin 1s infinite linear;
+        }
+
+        .loading-bubble {
+            background-color: #0b1222;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            padding: 16px;
+            border-radius: 8px;
+            flex-1;
+            width: 100%;
+        }
+
+        .loading-title {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--cyan-accent);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loading-bar-bg {
+            width: 100%;
+            height: 6px;
+            background-color: #020617;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            width: 40%;
+            background-color: var(--cyan-accent);
+            border-radius: 3px;
+            animation: load-flow 1.5s infinite ease-in-out;
+        }
+
+        .loading-caption {
+            font-size: 10px;
+            font-family: monospace;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* Quick Input Toolbar */
+        .quick-toolbar {
+            background-color: #0a1020;
+            border-top: 1px solid var(--border-color);
+            padding: 8px 16px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .quick-toolbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-toolbar span {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-right: 4px;
+        }
+
+        .quick-btn {
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--cyan-accent);
+            font-family: monospace;
+            font-size: 10px;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            background-color: rgba(6, 182, 212, 0.05);
+        }
+
+        /* Control Input Panel */
+        .input-panel {
+            background-color: #0d1426;
+            border-top: 1px solid var(--border-color);
+            padding: 16px;
+        }
+
+        .input-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+        }
+
+        .input-textarea {
+            flex: 1;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            color: var(--text-main);
+            font-family: monospace;
+            font-size: 13px;
+            resize: none;
+            height: 64px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-textarea:focus {
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        .send-btn {
+            background-color: rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            color: var(--cyan-accent);
+            padding: 0 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s;
+            width: 70px;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background-color: rgba(6, 182, 212, 0.1);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-disclaimer {
+            max-width: 1200px;
+            margin: 8px auto 0 auto;
+            display: flex;
+            justify-content: space-between;
+            font-family: monospace;
+            font-size: 9px;
+            color: #475569;
+        }
+
+        /* Notificação Temporária */
+        .toast-notification {
+            position: absolute;
+            top: 56px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #0f172a;
+            border: 1px solid var(--cyan-accent);
+            color: var(--cyan-accent);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            display: none;
+            animation: bounce-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* MODAL: Central OSINT */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .modal-box {
+            background-color: #0b1224;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            width: 100%;
+            max-width: 900px;
+            height: 80vh;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-header {
+            background-color: #0e172e;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-header-title h2 {
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .modal-header-title p {
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .modal-toolbar {
+            background-color: #0d1428;
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        @media (min-width: 640px) {
+            .modal-toolbar {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .search-input {
+            width: 100%;
+            background-color: #050812;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 12px 8px 32px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #475569;
+        }
+
+        .category-tabs {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            width: 100%;
+            padding-bottom: 4px;
+        }
+
+        @media (min-width: 640px) {
+            .category-tabs {
+                width: auto;
+                padding-bottom: 0;
+            }
+        }
+
+        .category-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .cat-tab {
+            background-color: #0f172a;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            font-family: monospace;
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .cat-tab.active {
+            background-color: rgba(6, 182, 212, 0.1);
+            color: var(--cyan-accent);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background-color: #070b16;
+        }
+
+        .osint-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        @media (min-width: 768px) {
+            .osint-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .osint-card {
+            background-color: var(--bg-main);
+            border: 1px solid rgba(30, 41, 59, 0.8);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .osint-card:hover {
+            border-color: rgba(6, 182, 212, 0.3);
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .osint-card-icon {
+            background-color: #0f172a;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            color: var(--cyan-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .osint-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .osint-card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+
+        .osint-card-cat {
+            font-size: 8px;
+            font-family: monospace;
+            font-weight: bold;
+            background-color: #020617;
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .osint-card-id {
+            font-size: 8px;
+            font-family: monospace;
+            color: #475569;
+        }
+
+        .osint-card-title {
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .osint-card:hover .osint-card-title {
+            color: var(--cyan-accent);
+        }
+
+        .osint-card-desc {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .modal-footer {
+            background-color: #0e172e;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        /* CONFIRMATION DIALOG */
+        .confirm-dialog {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(2px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .confirm-box {
+            background-color: #0b1224;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            width: 100%;
+            max-width: 380px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .confirm-header {
+            background-color: #0e172e;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--danger-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .confirm-body {
+            padding: 16px;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+
+        .confirm-footer {
+            background-color: rgba(2, 6, 17, 0.5);
+            padding: 12px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .confirm-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: none;
+            color: var(--text-muted);
+        }
+
+        .confirm-btn:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .confirm-btn.btn-danger-confirm {
+            background-color: rgba(244, 63, 94, 0.1);
+            color: var(--danger-color);
+            border-color: rgba(244, 63, 94, 0.3);
+        }
+
+        .confirm-btn.btn-danger-confirm:hover {
+            background-color: var(--danger-color);
+            color: #fff;
+        }
+
+        /* Animations */
+        @keyframes pulse-animation {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes ping-animation {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes load-flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(250%); }
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(244, 63, 94, 0.3); }
+            50% { border-color: rgba(244, 63, 94, 0.8); }
+        }
+
+        @keyframes bounce-in {
+            0% { transform: translate(-50%, -100%) scale(0.9); opacity: 0; }
+            100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+        }
+
+        /* History items list */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-card {
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: left;
+            cursor: pointer;
+            width: 100%;
+            font-family: monospace;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .history-card:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+            border-color: rgba(6, 182, 212, 0.2);
+        }
+
+        .history-card-title {
+            color: var(--cyan-accent);
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-card-date {
+            color: #475569;
+            font-size: 9px;
+        }
+
+        /* Responsividade para ecrãs menores */
+        @media (max-width: 768px) {
+            .workspace {
+                flex-direction: column;
+            }
+            aside {
+                width: 100%;
+                height: auto;
+                max-height: 250px;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            body {
+                zoom: 100%; /* Desativar zoom em mobile para garantir toque legível */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP HEADER -->
+    <header>
+        <div class="header-brand">
+            <div class="brand-icon">
+                <i data-lucide="shield"></i>
+            </div>
+            <div class="brand-text">
+                <h1>SHERLOCK-GPT <span class="brand-badge">OSINT</span></h1>
+                <p>INTEGRIDADE • INVESTIGAÇÃO DIGITAL • ANÁLISE DE VULNERABILIDADES</p>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>STATUS: <span style="color: var(--success-color)">OPERACIONAL</span></span>
+            </div>
+            <div class="alert-indicator" id="alertIndicator">
+                <i data-lucide="terminal" style="width: 14px; height: 14px;"></i>
+                <span id="alertText">ALERTA: MONITORANDO</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- WORKSPACE -->
+    <div class="workspace">
+        
+        <!-- SIDEBAR -->
+        <aside>
+            <div class="tabs-header">
+                <button class="tab-btn active" onclick="switchTab('chat')">Terminal</button>
+                <button class="tab-btn" onclick="switchTab('history')" id="historyTabBtn">Histórico</button>
+                <button class="tab-btn" onclick="switchTab('about')">Guia</button>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Tab Terminal -->
+                <div class="tab-pane active" id="pane-chat">
+                    <div>
+                        <div class="sidebar-section-title">
+                            <span><i data-lucide="layers" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Módulos Rápidos</span>
+                            <button class="osint-link-btn" onclick="openOsintHub()">+ 60 OSINT</button>
+                        </div>
+                        <div class="module-grid">
+                            <button class="module-card" onclick="useTemplate('website')">
+                                <i data-lucide="search" class="text-cyan" style="color:var(--cyan-accent);"></i>
+                                <div class="module-card-text">
+                                    <h4>Análise de Sites</h4>
+                                    <p>Verificar links, Phishing e golpes</p>
+                                </div>
+                            </button>
+                            <button class="module-card" onclick="useTemplate('profile')">
+                                <i data-lucide="user-x" style="color:var(--warning-color);"></i>
+                                <div class="module-card-text">
+                                    <h4>Análise de Perfis</h4>
+                                    <p>Detetar bots e fakes</p>
+                                </div>
+                            </button>
+                            <button class="module-card" onclick="useTemplate('code')">
+                                <i data-lucide="code" style="color:var(--success-color);"></i>
+                                <div class="module-card-text">
+                                    <h4>Análise Técnica</h4>
+                                    <p>Revisar códigos e scripts</p>
+                                </div>
+                            </button>
+                            <button class="module-card" onclick="useTemplate('context')">
+                                <i data-lucide="alert-triangle" style="color: #c084fc;"></i>
+                                <div class="module-card-text">
+                                    <h4>Investigação Geral</h4>
+                                    <p>Cruzamento lógico de dados</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                        <div class="sidebar-section-title">
+                            <span><i data-lucide="info" style="width:14px; height:14px; vertical-align:middle; margin-right:4px;"></i> Parâmetros Ativos</span>
+                        </div>
+                        <div class="parameters-card">
+                            <div class="param-row">
+                                <span>Profundidade:</span>
+                                <span class="param-value">Forense Completa</span>
+                            </div>
+                            <div class="param-row">
+                                <span>Validador de golpes:</span>
+                                <span class="param-value">Ativo</span>
+                            </div>
+                            <div class="param-row">
+                                <span>Módulos OSINT:</span>
+                                <span class="param-value">60 Disponíveis</span>
+                            </div>
+                            <div class="param-row">
+                                <span>Escala / Zoom:</span>
+                                <span class="param-value">85% (Compacto)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 8px;">
+                        <button class="action-btn" onclick="exportReport()">
+                            <i data-lucide="download" style="width: 14px; height: 14px;"></i> Exportar Relatório TXT
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tab Histórico -->
+                <div class="tab-pane" id="pane-history">
+                    <div class="sidebar-section-title">Casos de Hoje</div>
+                    <div class="history-list" id="historyList">
+                        <p style="font-family:monospace; font-size:11px; color:#475569; font-style:italic;">Nenhum caso analisado nesta sessão.</p>
+                    </div>
+                </div>
+
+                <!-- Tab Guia -->
+                <div class="tab-pane" id="pane-about" style="font-family:monospace; font-size:11px; color:var(--text-muted); line-height:1.6;">
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <div>
+                            <h4 style="color:#fff; font-weight:bold; margin-bottom:4px;">Como usar este terminal?</h4>
+                            <p>Escreva o link, código, telefone ou e-mail que deseja rastrear. Use o menu de OSINT no topo para carregar o modelo de dados de uma das 60 metodologias e guiar a sua investigação.</p>
+                        </div>
+                        <div>
+                            <h4 style="color:#fff; font-weight:bold; margin-bottom:4px;">Evidências de Fraude Comuns</h4>
+                            <p>Sites criados recentemente, gateways de faturação desconhecidos, erros ortográficos no domínio, propostas urgentes ou facilidade em tarefas online.</p>
+                        </div>
+                        <div style="border-top:1px solid var(--border-color); padding-top:12px; font-size:10px; color:var(--danger-color);">
+                            <p>Aviso legal: O Sherlock-GPT é uma ferramenta de apoio analítico baseada em fontes abertas. Use com discernimento ético.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <button class="action-btn btn-danger" onclick="triggerClearConfirm()">
+                    <i data-lucide="trash-2" style="width:14px; height:14px;"></i> Limpar Logs
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN TERMINAL AREA -->
+        <main>
+            <!-- Toast Notification -->
+            <div class="toast-notification" id="toastNotification"></div>
+
+            <div class="terminal-header">
+                <div class="terminal-title">
+                    <span class="terminal-ping"></span>
+                    <span>CORE_SHELL://INVESTIGATION_TERMINAL</span>
+                </div>
+                <div class="terminal-actions">
+                    <button class="btn-osint-hub" onclick="openOsintHub()">
+                        <i data-lucide="search" style="width:12px; height:12px;"></i> Módulos OSINT
+                    </button>
+                    <button class="btn-icon-only" onclick="openOsintHub()" title="Selecionar Funcionalidade OSINT">
+                        <i data-lucide="more-vertical" style="width:16px; height:16px;"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message logs stream -->
+            <div class="logs-container" id="logsContainer">
+                <!-- Mensagem Inicial -->
+                <div class="log-row row-ai">
+                    <div class="log-avatar">AI</div>
+                    <div class="log-bubble">
+                        <div class="log-meta">
+                            <span>SISTEMA DE ANÁLISE</span>
+                            <span class="initial-timestamp">00:00:00</span>
+                        </div>
+                        <div class="log-body markdown-content">
+                            <h2><i data-lucide="search" style="color:var(--cyan-accent); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 1. RESUMO</h2>
+                            <p>Olá, Investigador. Sou a sua Inteligência Artificial especializada em Investigação Digital, Análise de Risco e Perícia Forense em Fontes Abertas. Estou online e pronto para iniciar.</p>
+                            
+                            <h2><i data-lucide="terminal" style="color:var(--warning-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 2. ANÁLISE DETALHADA</h2>
+                            <p>Posso ajudá-lo a mapear e periciar:</p>
+                            <ul>
+                                <li><strong>Links & Portais</strong>: Identificação de Phishing, fraudes eletrónicas e domínio reputacional.</li>
+                                <li><strong>Perfis de Utilizadores</strong>: Padrões de engenharia social, rastreio de usernames ou fakes.</li>
+                                <li><strong>Códigos & Scripts</strong>: Auditoria de falhas de segurança e backdoors maliciosos.</li>
+                                <li><strong>Dados & Telefones</strong>: Cruzamento de vazamentos públicos para montagem de matriz de ameaças.</li>
+                            </ul>
+
+                            <h2><i data-lucide="alert-triangle" style="color:var(--danger-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 3. RISCOS IDENTIFICADOS</h2>
+                            <ul>
+                                <li>Operações em andamento exigem correlação lógica de metadados para mitigação de falsos positivos.</li>
+                            </ul>
+
+                            <h2><i data-lucide="shield" style="color:#c084fc; width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 4. CONCLUSÃO</h2>
+                            <div class="security-alert-box secure">
+                                <i data-lucide="shield" style="width:20px; height:20px;"></i>
+                                <span><strong>NÍVEL DE SEGURANÇA: SEGURO</strong><br>Ambiente de perícia estabelecido e isolado.</span>
+                            </div>
+
+                            <h2><i data-lucide="check-circle" style="color:var(--success-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 5. RECOMENDAÇÕES</h2>
+                            <p>Utilize um dos templates rápidos no menu lateral à esquerda ou clique no menu de <strong>três pontos (Módulos OSINT)</strong> no topo para aceder aos 60 modelos estruturados de inteligência.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Toolbar -->
+            <div class="quick-toolbar">
+                <span>Insira rápido:</span>
+                <button class="quick-btn" onclick="quickAppend(' Link suspeito: ')">+ Link</button>
+                <button class="quick-btn" onclick="quickAppend(' Perfil suspeito no Telegram/Instagram: ')">+ Perfil</button>
+                <button class="quick-btn" onclick="quickAppend(' Analisar este script Python/JS: ')">+ Script</button>
+                <button class="quick-btn" onclick="quickAppend(' Quais os riscos desse tipo de proposta financeira? ')">+ Risco Fin.</button>
+            </div>
+
+            <!-- Input Panel -->
+            <div class="input-panel">
+                <div class="input-container">
+                    <textarea 
+                        id="terminalInput" 
+                        placeholder="Insira os dados, links, telefones ou use os módulos OSINT clicando nos 3 pontos acima..."
+                        class="input-textarea"
+                    ></textarea>
+                    <button id="sendBtn" class="send-btn" onclick="handleSend()">
+                        <i data-lucide="send" style="width:16px; height:16px;"></i>
+                        <span>ENVIAR</span>
+                    </button>
+                </div>
+                <div class="input-disclaimer">
+                    <span>* Prima Enter para enviar. Shift + Enter para quebra de linha.</span>
+                    <span>Todas as análises utilizam o framework de dados de fontes públicas OSINT.</span>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- MODAL: CENTRAL OSINT (60 FUNCIONALIDADES) -->
+    <div class="modal-overlay" id="osintModal">
+        <div class="modal-box">
+            
+            <div class="modal-header">
+                <div class="modal-header-title">
+                    <div class="brand-icon" style="padding:6px;">
+                        <i data-lucide="shield" style="width: 18px; height: 18px;"></i>
+                    </div>
+                    <div>
+                        <h2>CENTRAL OSINT FORENSE (60 Módulos)</h2>
+                        <p>Selecione uma técnica especializada para instruir o console investigativo</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeOsintHub()">
+                    <i data-lucide="x" style="width:20px; height:20px;"></i>
+                </button>
+            </div>
+
+            <div class="modal-toolbar">
+                <div class="search-wrapper">
+                    <input 
+                        type="text" 
+                        id="osintSearch" 
+                        placeholder="Pesquisar protocolo ou módulo..." 
+                        class="search-input"
+                        oninput="filterOsintTools()"
+                    >
+                    <i data-lucide="search" style="width:14px; height:14px;"></i>
+                </div>
+
+                <div class="category-tabs" id="categoryTabs">
+                    <!-- Categorias populadas via JS -->
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <div class="osint-grid" id="osintGrid">
+                    <!-- Grid populado via JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span id="modalToolsCounter">Módulos carregados: 0 / 60</span>
+                <span>Sherlock OSINT framework v4.1</span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMAÇÃO DIALOG -->
+    <div class="confirm-dialog" id="confirmDialog">
+        <div class="confirm-box">
+            <div class="confirm-header">
+                <i data-lucide="alert-triangle" style="width:16px; height:16px;"></i>
+                <span>Apagar Console?</span>
+            </div>
+            <div class="confirm-body">
+                Esta ação apagará de maneira permanente todo o histórico de logs da sua investigação atual. Deseja prosseguir com o reset de segurança?
+            </div>
+            <div class="confirm-footer">
+                <button class="confirm-btn" onclick="closeClearConfirm()">Cancelar</button>
+                <button class="confirm-btn btn-danger-confirm" onclick="clearChatConfirmed()">Apagar Tudo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA E INTEGRAÇÃO -->
+    <script>
+        // Configurações do Sherlock-GPT
+        const apiKey = ""; // Chave injetada pelo ambiente
+        const SYSTEM_PROMPT = `Você é uma inteligência artificial especializada em INVESTIGAÇÃO DIGITAL, ANÁLISE DE RISCO e VERIFICAÇÃO DE INFORMAÇÕES.
+
+Seu objetivo é analisar dados, sites, perfis, scripts ou situações com profundidade técnica, pensamento crítico e abordagem investigativa.
+
+REGRAS DE COMPORTAMENTO:
+- Nunca responda de forma superficial.
+- Sempre investigue antes de concluir.
+- Questione inconsistências, padrões suspeitos e possíveis riscos.
+- Evite suposições sem base lógica.
+- Se não houver dados suficientes, deixe isso claro.
+
+CAPACIDADES PRINCIPAIS:
+1. Análise de Sites: Verificar confiabilidade, identificar sinais de golpe (phishing, scam, fraude), avaliar reputação e estrutura.
+2. Análise de Perfis: Detectar comportamento suspeito, avaliar autenticidade, identificar padrões de golpe ou manipulação.
+3. Análise Técnica: Revisar códigos (Python, PHP, bots, etc.), encontrar vulnerabilidades, sugerir melhorias e correções.
+4. Investigação Contextual: Cruzar informações, identificar contradicções, construir hipóteses baseadas em evidências.
+
+FORMATO OBRIGATÓRIO DAS RESPOSTAS:
+Sempre responda seguindo estritamente essa estrutura em Markdown, usando títulos claros em letras maiúsculas:
+
+# 1. RESUMO
+[Resumo direto e conciso da análise]
+
+# 2. ANÁLISE DETALHADA
+[Explique detalhadamente os pontos técnicos, evidências e observações coletadas]
+
+# 3. RISCOS IDENTIFICADOS
+[Liste os riscos encontrados em formato de tópicos ou informe se nenhum risco foi detectado]
+
+# 4. CONCLUSÃO
+Classifique claramente o nível de risco em uma nova linha como:
+**NÍVEL DE SEGURANÇA: SEGURO** ou **NÍVEL DE SEGURANÇA: SUSPEITO** ou **NÍVEL DE SEGURANÇA: ALTO RISCO**
+[Justificativa rápida para a classificação]
+
+# 5. RECOMENDAÇÕES
+[Instruções claras e acionáveis sobre o que o usuário deve fazer ou evitar]
+
+ESTILO:
+- Linguagem clara, direta e incisiva.
+- Tom extremamente profissional (estilo investigador digital/perito forense).
+- Foco absoluto em lógica, dados e evidências.`;
+
+        // 60 Funcionalidades OSINT
+        const osintTools = [
+            // Categoria 1: Pessoas
+            { id: 1, cat: "Pessoas", name: "Sherlock Nicknames", icon: "user-x", desc: "Busca automatizada de nicknames em mais de 400 redes sociais.", placeholder: "NOME DO PROTOCOLO OSINT: Sherlock Nicknames\n\nInstruções: Mapeie o histórico e contas ativas usando o username fornecido.\n\nUsername: [Insira aqui]" },
+            { id: 2, cat: "Pessoas", name: "Namechk Registry", icon: "user-x", desc: "Varredura de disponibilidade e registros de login em redes globais.", placeholder: "NOME DO PROTOCOLO OSINT: Namechk Registry\n\nAlvo de pesquisa:\nUsername: [Insira aqui]" },
+            { id: 3, cat: "Pessoas", name: "Análise de Vazamento de CPF", icon: "shield", desc: "Investigação de informações vazadas associadas a um CPF.", placeholder: "NOME DO PROTOCOLO OSINT: Lupa de CPF/Vazamento\n\nDados públicos do CPF: [Insira aqui]" },
+            { id: 4, cat: "Pessoas", name: "Certidões & Diários Oficiais", icon: "file-text", desc: "Rastreamento judicial estruturado em repositórios da justiça.", placeholder: "NOME DO PROTOCOLO OSINT: Certidões e Diários Oficiais\n\nNome do alvo: [Insira aqui]" },
+            { id: 5, cat: "Pessoas", name: "Mapeamento Genealógico (FamilyTree)", icon: "user-x", desc: "Descoberta de conexões de parentesco em bases abertas.", placeholder: "NOME DO PROTOCOLO OSINT: Mapeamento Genealógico\n\nAlvo: [Insira o nome de parentes conhecidos para cruzamento]" },
+            { id: 6, cat: "Pessoas", name: "Assinaturas Digitais & Selos", icon: "check-circle", desc: "Validação de autenticidade documental em chaves públicas.", placeholder: "NOME DO PROTOCOLO OSINT: Assinaturas Digitais e Selos\n\nDados brutos do selo/token: [Insira aqui]" },
+            { id: 7, cat: "Pessoas", name: "Registros de Conselhos (CRM/OAB/CREA)", icon: "check-circle", desc: "Validação de credenciais e status de atuação profissional.", placeholder: "NOME DO PROTOCOLO OSINT: Validação de Conselho Profissional\n\nConselho e ID: [Ex: OAB/SP 123456]" },
+            { id: 8, cat: "Pessoas", name: "Sociedades & MEI/CNPJ", icon: "file-text", desc: "Análise de quadros societários e filiais empresariais.", placeholder: "NOME DO PROTOCOLO OSINT: Sociedades & CNPJ\n\nEmpresa ou CNPJ: [Insira aqui]" },
+            { id: 9, cat: "Pessoas", name: "LinkedIn & Portais de Currículos", icon: "user-x", desc: "Rastreio e mineração de histórico de emprego exposto.", placeholder: "NOME DO PROTOCOLO OSINT: LinkedIn Mining\n\nPerfil ou dados expostos: [Insira aqui]" },
+            { id: 10, cat: "Pessoas", name: "Transparência Governamental", icon: "shield", desc: "Identificação de salários públicos, cargos ativos e licitações.", placeholder: "NOME DO PROTOCOLO OSINT: Transparência Pública\n\nNome ou Órgão: [Insira aqui]" },
+            
+            // Categoria 2: E-mails
+            { id: 11, cat: "E-mails", name: "Hunter.io Corporate Scan", icon: "mail", desc: "Mapeamento estrutural de emails vinculados a um domínio.", placeholder: "NOME DO PROTOCOLO OSINT: Hunter.io Corporate\n\nDomínio do alvo: [Ex: empresa.com]" },
+            { id: 12, cat: "E-mails", name: "HaveIBeenPwned Check", icon: "mail", desc: "Rastreio de violações de segurança e vazamentos por e-mail.", placeholder: "NOME DO PROTOCOLO OSINT: HaveIBeenPwned Audit\n\nE-mail sob auditoria: [Ex: alvo@email.com]" },
+            { id: 13, cat: "E-mails", name: "DeHashed Password Hash Leak", icon: "shield", desc: "Pesquisa avançada de senhas expostas em texto claro e hashes.", placeholder: "NOME DO PROTOCOLO OSINT: DeHashed Database Scan\n\nE-mail ou Hash suspeito: [Insira aqui]" },
+            { id: 14, cat: "E-mails", name: "Email Permutator Generator", icon: "mail", desc: "Gerador de combinações para dedução de endereços corporativos.", placeholder: "NOME DO PROTOCOLO OSINT: Permutador de E-mails\n\nNome: [Nome]\nSobrenome: [Sobrenome]\nDomínio: [empresa.com]" },
+            { id: 15, cat: "E-mails", name: "Detetor de Emails Descartáveis", icon: "mail", desc: "Validação contra caixas de correio temporárias usadas em fraudes.", placeholder: "NOME DO PROTOCOLO OSINT: Verificação de Inbox Descartável\n\nDomínio suspeito: [Ex: tempmail.com]" },
+            { id: 16, cat: "E-mails", name: "Análise de Header (Cabeçalho Eml)", icon: "terminal", desc: "Decodificação de rota e IP de origem em arquivos de e-mail.", placeholder: "NOME DO PROTOCOLO OSINT: Engenharia Reversa de Cabeçalho de E-mail\n\nPropriedades brutas do cabeçalho:\n[Cole aqui]" },
+            { id: 17, cat: "E-mails", name: "Registros de DNS MX Mail", icon: "globe", desc: "Auditoria de servidores de mail exchange para identificação de spoofing.", placeholder: "NOME DO PROTOCOLO OSINT: MX Record Check\n\nDomínio: [Ex: empresa.com]" },
+            { id: 18, cat: "E-mails", name: "Gravatar Target Search", icon: "user-x", desc: "Conversão MD5 para pesquisa de contas integradas e avatares.", placeholder: "NOME DO PROTOCOLO OSINT: Gravatar Reverse\n\nE-mail do alvo: [Ex: alvo@email.com]" },
+            { id: 19, cat: "E-mails", name: "Holehe Account Finder", icon: "mail", desc: "Descobrir redes associadas a um endereço de e-mail ativo.", placeholder: "NOME DO PROTOCOLO OSINT: Holehe Account Scanner\n\nE-mail de interesse: [Ex: alvo@email.com]" },
+            { id: 20, cat: "E-mails", name: "Leak-Lookup Registry", icon: "shield", desc: "Filtro rápido de informações corporativas em repositórios antigos.", placeholder: "NOME DO PROTOCOLO OSINT: Leak-Lookup Search\n\nDomínio ou e-mail pessoal: [Insira aqui]" },
+
+            // Categoria 3: Telefones
+            { id: 21, cat: "Telefones", name: "TrueCaller CallerID", icon: "phone", desc: "Identificação cadastral e operadora associada a um número celular.", placeholder: "NOME DO PROTOCOLO OSINT: TrueCaller Reverse Lookup\n\nNúmero (DDI/DDD): [Ex: +55 (11) 99999-9999]" },
+            { id: 22, cat: "Telefones", name: "Sync.me Contact Finder", icon: "phone", desc: "Identificar perfis, foto e identidade do titular do celular.", placeholder: "NOME DO PROTOCOLO OSINT: Sync.me Database Search\n\nNúmero de telefone: [Ex: +55 11 98888-8888]" },
+            { id: 23, cat: "Telefones", name: "Whoscall Spam Index", icon: "phone", desc: "Verificar se o celular está registado em campanhas de golpe/vendas.", placeholder: "NOME DO PROTOCOLO OSINT: Whoscall Spam Check\n\nNúmero do alvo: [Insira aqui]" },
+            { id: 24, cat: "Telefones", name: "WhatsApp OSINT Profile", icon: "share-2", desc: "Capturar dados públicos do WhatsApp, incluindo foto e status.", placeholder: "NOME DO PROTOCOLO OSINT: WhatsApp OSINT Profile\n\nNúmero do telefone: [Ex: 5511999999999]" },
+            { id: 25, cat: "Telefones", name: "Telegram Bot Phone Map", icon: "share-2", desc: "Pesquisa de vinculações e ID único do Telegram pelo telefone.", placeholder: "NOME DO PROTOCOLO OSINT: Telegram Phone Mapping\n\nID ou Telefone: [Insira aqui]" },
+            { id: 26, cat: "Telefones", name: "Prefixo & Portabilidade", icon: "phone", desc: "Auditoria de operadora atual e histórico de migração do chip.", placeholder: "NOME DO PROTOCOLO OSINT: Portabilidade Operadora\n\nNúmero de telefone: [Insira aqui]" },
+            { id: 27, cat: "Telefones", name: "Códigos MCC & MNC Carrier", icon: "terminal", desc: "Identificar geolocalização física da cobertura da operadora GSM.", placeholder: "NOME DO PROTOCOLO OSINT: MCC/MNC Carrier Audit\n\nCódigo do terminal: [Insira aqui]" },
+            { id: 28, cat: "Telefones", name: "Consulta Pix por Telefone", icon: "shield", desc: "Verificação de contas bancárias vinculadas ao número via chave Pix.", placeholder: "NOME DO PROTOCOLO OSINT: Chave Pix Telefone\n\nNúmero de celular: [Insira aqui]" },
+            { id: 29, cat: "Telefones", name: "Validador de Caller ID Spoof", icon: "phone", desc: "Deteção de falsificação do ID de chamada via VOIP externo.", placeholder: "NOME DO PROTOCOLO OSINT: Spoofing Caller ID Check\n\nLogs de chamada: [Insira aqui]" },
+            { id: 30, cat: "Telefones", name: "HLR Lookup (Chip Conectado)", icon: "phone", desc: "Verificação rápida para aferir se o chip está ativo nas antenas.", placeholder: "NOME DO PROTOCOLO OSINT: HLR Lookup GSM\n\nNúmero completo com DDI/DDD: [Insira aqui]" },
+
+            // Categoria 4: Geolocalização
+            { id: 31, cat: "Geolocalização", name: "EXIF Metadata Extractor", icon: "map-pin", desc: "Extração de coordenadas GPS e data de gravação em imagens.", placeholder: "NOME DO PROTOCOLO OSINT: EXIF Metadata Analyzer\n\nMetadados brutos extraídos da imagem:\n[Cole aqui]" },
+            { id: 32, cat: "Geolocalização", name: "Busca Reversa Google/Yandex", icon: "search", desc: "Rastreio de ocorrências de uma imagem na web para detetar fakes.", placeholder: "NOME DO PROTOCOLO OSINT: Reverse Image Search\n\nDescrição visual da foto ou links: [Descreva a imagem]" },
+            { id: 33, cat: "Geolocalização", name: "PimEyes Recon Facial", icon: "user-x", desc: "Pesquisa biométrica facial em larga escala na rede aberta.", placeholder: "NOME DO PROTOCOLO OSINT: PimEyes Face Recon\n\nRedes sociais e nome do alvo: [Insira aqui]" },
+            { id: 34, cat: "Geolocalização", name: "Coordenadas por GeoEstimation", icon: "map-pin", desc: "Determinar local por elementos visuais (postes, placas, vegetação).", placeholder: "NOME DO PROTOCOLO OSINT: GeoEstimation Visual\n\nDescreva detalhes visuais do plano de fundo da foto:\n[Descreva aqui]" },
+            { id: 35, cat: "Geolocalização", name: "SunCalc Shadow (Hora do Sol)", icon: "map-pin", desc: "Estudo posicional de sombras para datar o horário de uma foto.", placeholder: "NOME DO PROTOCOLO OSINT: SunCalc Shadow Calculator\n\nLocal e comportamento da sombra: [Insira aqui]" },
+            { id: 36, cat: "Geolocalização", name: "FlightRadar24 (Voos)", icon: "map-pin", desc: "Análise histórica de tráfego aéreo sobre o ponto geográfico.", placeholder: "NOME DO PROTOCOLO OSINT: FlightRadar24 Log Analysis\n\nCódigo da cauda ou aeroporto: [Insira aqui]" },
+            { id: 37, cat: "Geolocalização", name: "MarineTraffic (Marítimo)", icon: "map-pin", desc: "Mapeamento de tráfego de embarcações próximo a portos ou costas.", placeholder: "NOME DO PROTOCOLO OSINT: MarineTraffic Port Search\n\nPorto ou navio: [Insira aqui]" },
+            { id: 38, cat: "Geolocalização", name: "Google Street View Histórico", icon: "map-pin", desc: "Investigação temporal de fachadas imobiliárias nos últimos 10 anos.", placeholder: "NOME DO PROTOCOLO OSINT: Street View Timeline\n\nCoordenadas ou Endereço: [Insira aqui]" },
+            { id: 39, cat: "Geolocalização", name: "Consultas OpenStreetMap Overpass", icon: "map-pin", desc: "Consultas geográficas correlacionando pontos de interesse públicos.", placeholder: "NOME DO PROTOCOLO OSINT: Overpass OSM Query\n\nReferências próximas (ex: igreja, hospital): [Descreva]" },
+            { id: 40, cat: "Geolocalização", name: "Satélite Sentinel-2", icon: "map-pin", desc: "Sensoriamento aéreo com imagens recentes via satélite orbital.", placeholder: "NOME DO PROTOCOLO OSINT: Sentinel-2 Satellite Mapping\n\nCoordenadas decimais: [Ex: -23.5505, -46.6333]" },
+
+            // Categoria 5: Infraestrutura
+            { id: 41, cat: "Infraestrutura", name: "Whois Advanced History", icon: "globe", desc: "Rastreamento histórico de registos e e-mails de um domínio.", placeholder: "NOME DO PROTOCOLO OSINT: Whois History Inspection\n\nDomínio sob suspeita: [Ex: site-suspeito.com]" },
+            { id: 42, cat: "Infraestrutura", name: "DNSDumpster (Mapeamento)", icon: "globe", desc: "Identificação de subdomínios, IPs ocultos e configurações DNS.", placeholder: "NOME DO PROTOCOLO OSINT: DNSDumpster DNS Mapping\n\nDomínio de interesse: [Ex: alvo.com]" },
+            { id: 43, cat: "Infraestrutura", name: "Shodan IOT Search Engine", icon: "terminal", desc: "Mapeamento de serviços expostos e dispositivos IOT vulneráveis.", placeholder: "NOME DO PROTOCOLO OSINT: Shodan Target Scan\n\nEndereço de IP: [Ex: 192.168.1.1]" },
+            { id: 44, cat: "Infraestrutura", name: "Censys SSL Inspection", icon: "globe", desc: "Auditoria de certificados SSL associados ao IP de alojamento.", placeholder: "NOME DO PROTOCOLO OSINT: Censys Certificate Analysis\n\nIP ou Domínio: [Ex: 104.244.42.1]" },
+            { id: 45, cat: "Infraestrutura", name: "WayBack Machine Explorer", icon: "file-text", desc: "Recuperação de páginas e posts eliminados de sites antigos.", placeholder: "NOME DO PROTOCOLO OSINT: Wayback Machine Web Archive\n\nURL da página: [Ex: site.com/pagina]" },
+            { id: 46, cat: "Infraestrutura", name: "URLScan.io Sandbox", icon: "code", desc: "Emulador para verificação segura de redirecionamentos em links.", placeholder: "NOME DO PROTOCOLO OSINT: URLScan.io Safe Scan\n\nURL suspeita: [Ex: site-suspeito.com/login]" },
+            { id: 47, cat: "Infraestrutura", name: "BuiltWith Technographics", icon: "code", desc: "Descobrir tecnologias, pixels e IDs analíticos do domínio.", placeholder: "NOME DO PROTOCOLO OSINT: BuiltWith Tech Analysis\n\nDomínio: [Ex: lojavirtual.com]" },
+            { id: 48, cat: "Infraestrutura", name: "VirusTotal Reputation", icon: "shield", desc: "Análise reputacional de ficheiros, endereços IP e domínios.", placeholder: "NOME DO PROTOCOLO OSINT: VirusTotal IP & File Scan\n\nIP, Ficheiro ou URL: [Insira aqui]" },
+            { id: 49, cat: "Infraestrutura", name: "Certificados SSL CT Logs", icon: "globe", desc: "Varrer bases Certificate Transparency em busca de subdomínios novos.", placeholder: "NOME DO PROTOCOLO OSINT: Certificate Transparency Audit\n\nDomínio base: [Ex: banco-oficial.com]" },
+            { id: 50, cat: "Infraestrutura", name: "Robots.txt Explorer", icon: "file-text", desc: "Mapeamento de diretórios não indexados e configurações restritas.", placeholder: "NOME DO PROTOCOLO OSINT: Robots.txt Analysis\n\nURL raiz: [Ex: site.com]" },
+
+            // Categoria 6: Redes Sociais
+            { id: 51, cat: "Redes Sociais", name: "Facebook Graph Search", icon: "share-2", desc: "Extrair interações públicas e IDs de utilizadores ocultos.", placeholder: "NOME DO PROTOCOLO OSINT: Facebook Graph Query\n\nPerfil ou ID: [Insira aqui]" },
+            { id: 52, cat: "Redes Sociais", name: "Twitter/X Advanced Filters", icon: "share-2", desc: "Filtrar publicações históricas e diálogos antigos excluídos.", placeholder: "NOME DO PROTOCOLO OSINT: Twitter Advanced Search\n\nUsername (@usuario) e termos: [Insira aqui]" },
+            { id: 53, cat: "Redes Sociais", name: "LinkedIn Corporate Mining", icon: "user-x", desc: "Levantamento de equipas de tecnologia e colaboradores ativos.", placeholder: "NOME DO PROTOCOLO OSINT: LinkedIn Corporate Mining\n\nEmpresa: [Insira aqui]" },
+            { id: 54, cat: "Redes Sociais", name: "Instagram ID Tracer", icon: "share-2", desc: "Localizar o ID numérico do perfil para rastreio de alterações de user.", placeholder: "NOME DO PROTOCOLO OSINT: Instagram ID Tracker\n\nUsername atual: [Ex: @usuario]" },
+            { id: 55, cat: "Redes Sociais", name: "TikTok Metadata Extractor", icon: "share-2", desc: "Extração de data de upload e metadados ocultos de vídeos de fraudes.", placeholder: "NOME DO PROTOCOLO OSINT: TikTok Video Metadados\n\nLink do vídeo: [Cole aqui]" },
+            { id: 56, cat: "Redes Sociais", name: "Reddit User Analyzer", icon: "share-2", desc: "Perfil analítico comportamental baseado nas comunidades do utilizador.", placeholder: "NOME DO PROTOCOLO OSINT: Reddit Behavioral Analysis\n\nUser do Reddit: [Ex: u/nome]" },
+            { id: 57, cat: "Redes Sociais", name: "Strava Coordinates Mapping", icon: "map-pin", desc: "Mapeamento posicional de trajetos de corrida públicos de alvos.", placeholder: "NOME DO PROTOCOLO OSINT: Strava Heatmap Tracking\n\nTrajeto ou localização: [Insira aqui]" },
+            { id: 58, cat: "Redes Sociais", name: "YouTube Metadata Inspection", icon: "share-2", desc: "Varredura fina de descrições, datas e dados ocultos do criador.", placeholder: "NOME DO PROTOCOLO OSINT: YouTube Metadata Extraction\n\nLink do vídeo: [Cole aqui]" },
+            { id: 59, cat: "Redes Sociais", name: "Linktree OSINT Aggregator", icon: "share-2", desc: "Varredura e indexação de todos os canais compilados no agregador.", placeholder: "NOME DO PROTOCOLO OSINT: Linktree Aggregator\n\nLinktree URL: [Ex: linktr.ee/usuario]" },
+            { id: 60, cat: "Redes Sociais", name: "Discord ID Info Extraction", icon: "code", desc: "Dedução da data exata de criação da conta via ID do utilizador.", placeholder: "NOME DO PROTOCOLO OSINT: Discord ID Info\n\nDiscord ID: [Ex: 123456789012345678]" }
+        ];
+
+        let history = [];
+        let currentAnalysisClass = 'normal';
+        let activeCategory = 'Todas';
+
+        // Inicialização
+        window.onload = function() {
+            lucide.createIcons();
+            document.querySelector('.initial-timestamp').textContent = new Date().toLocaleTimeString();
+            buildCategoryTabs();
+            buildOsintGrid();
+            
+            // Ouvinte de teclado do terminal
+            document.getElementById('terminalInput').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
+        }
+
+        // Navegação de Abas no Sidebar
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+            if (tab === 'chat') {
+                document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
+                document.getElementById('pane-chat').classList.add('active');
+            } else if (tab === 'history') {
+                document.getElementById('historyTabBtn').classList.add('active');
+                document.getElementById('pane-history').classList.add('active');
+                renderHistory();
+            } else if (tab === 'about') {
+                document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+                document.getElementById('pane-about').classList.add('active');
+            }
+        }
+
+        // Templates rápidos
+        function useTemplate(type) {
+            let promptText = "";
+            switch (type) {
+                case 'website':
+                    promptText = "Investigar o seguinte site quanto a riscos de fraude, phishing ou scam:\nURL: [Insira a URL aqui]\nNome comercial: [Nome]\nObservações suspeitas: [O que o fez desconfiar?]";
+                    break;
+                case 'profile':
+                    promptText = "Analisar o seguinte perfil de rede social quanto à autenticidade e risco de golpe:\nPlataforma: [Ex: Instagram, Telegram, LinkedIn]\nNome/User: [User/Link]\nComportamento observado: [Ex: Ofereceu ganho fácil, fotos fakes, gerou pressa]";
+                    break;
+                case 'code':
+                    promptText = "Efetuar análise técnica de vulnerabilidades e segurança no seguinte código:\nLanguage: [Ex: Python, PHP, JS]\nCódigo:\n```\n[Cole seu código aqui]\n```";
+                    break;
+                case 'context':
+                    promptText = "Análise investigativa sobre a seguinte proposta ou situação recebida:\n[Descreva detalhadamente a proposta, mensagem suspeita, oferta de emprego fácil ou transação duvidosa]";
+                    break;
+            }
+            document.getElementById('terminalInput').value = promptText;
+            switchTab('chat');
+            document.getElementById('terminalInput').focus();
+        }
+
+        // Append rápido do toolbar inferior
+        function quickAppend(text) {
+            const input = document.getElementById('terminalInput');
+            input.value = input.value + text;
+            input.focus();
+        }
+
+        // Modal OSINT - Centralização e construção dinâmica
+        function openOsintHub() {
+            document.getElementById('osintModal').style.display = 'flex';
+        }
+
+        function closeOsintHub() {
+            document.getElementById('osintModal').style.display = 'none';
+        }
+
+        function buildCategoryTabs() {
+            const container = document.getElementById('categoryTabs');
+            const categories = ['Todas', 'Pessoas', 'E-mails', 'Telefones', 'Geolocalização', 'Infraestrutura', 'Redes Sociais'];
+            
+            container.innerHTML = '';
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = `cat-tab ${activeCategory === cat ? 'active' : ''}`;
+                btn.textContent = cat;
+                btn.onclick = () => filterByCategory(cat);
+                container.appendChild(btn);
+            });
+        }
+
+        function filterByCategory(cat) {
+            activeCategory = cat;
+            buildCategoryTabs();
+            filterOsintTools();
+        }
+
+        function buildOsintGrid() {
+            const grid = document.getElementById('osintGrid');
+            grid.innerHTML = '';
+            
+            osintTools.forEach(tool => {
+                const card = document.createElement('button');
+                card.className = 'osint-card';
+                card.dataset.cat = tool.cat;
+                card.dataset.name = tool.name.toLowerCase();
+                card.dataset.desc = tool.desc.toLowerCase();
+                card.onclick = () => selectOsintTool(tool);
+
+                card.innerHTML = `
+                    <div class="osint-card-icon">
+                        <i data-lucide="${tool.icon || 'help-circle'}" style="width:16px; height:16px;"></i>
+                    </div>
+                    <div class="osint-card-content">
+                        <div class="osint-card-meta">
+                            <span class="osint-card-cat">${tool.cat}</span>
+                            <span class="osint-card-id">ID: ${tool.id.toString().padStart(2, '0')}</span>
+                        </div>
+                        <h4 class="osint-card-title">${tool.name}</h4>
+                        <p class="osint-card-desc">${tool.desc}</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            
+            lucide.createIcons();
+            updateModalCounter();
+        }
+
+        function filterOsintTools() {
+            const search = document.getElementById('osintSearch').value.toLowerCase();
+            const cards = document.querySelectorAll('.osint-card');
+            let count = 0;
+
+            cards.forEach(card => {
+                const catMatch = activeCategory === 'Todas' || card.dataset.cat === activeCategory;
+                const searchMatch = card.dataset.name.includes(search) || card.dataset.desc.includes(search) || card.dataset.cat.toLowerCase().includes(search);
+
+                if (catMatch && searchMatch) {
+                    card.style.display = 'flex';
+                    count++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            document.getElementById('modalToolsCounter').textContent = `Módulos correspondentes: ${count} / 60`;
+        }
+
+        function updateModalCounter() {
+            document.getElementById('modalToolsCounter').textContent = `Módulos carregados: ${osintTools.length} / 60`;
+        }
+
+        function selectOsintTool(tool) {
+            document.getElementById('terminalInput').value = tool.placeholder;
+            closeOsintHub();
+            switchTab('chat');
+            document.getElementById('terminalInput').focus();
+            showToast(`Protocolo OSINT: [${tool.name}] carregado no console!`);
+        }
+
+        // Custom Toasts
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3500);
+        }
+
+        // Dialogs de Confirmação customizados (Substitutos de alerts para iframe)
+        function triggerClearConfirm() {
+            document.getElementById('confirmDialog').style.display = 'flex';
+        }
+
+        function closeClearConfirm() {
+            document.getElementById('confirmDialog').style.display = 'none';
+        }
+
+        function clearChatConfirmed() {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = `
+                <div class="log-row row-ai">
+                    <div class="log-avatar">AI</div>
+                    <div class="log-bubble">
+                        <div class="log-meta">
+                            <span>SISTEMA DE ANÁLISE</span>
+                            <span>${new Date().toLocaleTimeString()}</span>
+                        </div>
+                        <div class="log-body markdown-content">
+                            <h2><i data-lucide="layers" style="color:var(--cyan-accent); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 1. RESUMO</h2>
+                            <p>Logs limpos. Nova sessão de investigação e perícia estabelecida.</p>
+                            <h2><i data-lucide="terminal" style="color:var(--warning-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 2. ANÁLISE DETALHADA</h2>
+                            <p>A aguardar novas entradas no console investigativo de fontes abertas.</p>
+                            <h2><i data-lucide="alert-triangle" style="color:var(--danger-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 3. RISCOS IDENTIFICADOS</h2>
+                            <p>Sem dados populados na sessão atual.</p>
+                            <h2><i data-lucide="shield" style="color:#c084fc; width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 4. CONCLUSÃO</h2>
+                            <div class="security-alert-box secure">
+                                <i data-lucide="shield" style="width:20px; height:20px;"></i>
+                                <span><strong>NÍVEL DE SEGURANÇA: SEGURO</strong><br>Console aguardando pacotes.</span>
+                            </div>
+                            <h2><i data-lucide="check-circle" style="color:var(--success-color); width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> 5. RECOMENDAÇÕES</h2>
+                            <p>Forneça logs, URLs ou dados para que a inteligência analítica execute o protocolo forense.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            updateAlertaStatus('SEGURO');
+            closeClearConfirm();
+            lucide.createIcons();
+            showToast("Registros do console reiniciados.");
+        }
+
+        // Lógica de Envio de Mensagem para API Gemini
+        async function handleSend() {
+            const inputField = document.getElementById('terminalInput');
+            const text = inputField.value.trim();
+            if (!text) return;
+
+            // Bloquear botão e limpar input
+            inputField.value = '';
+            document.getElementById('sendBtn').disabled = true;
+
+            const timeNow = new Date().toLocaleTimeString();
+
+            // Adicionar mensagem do Utilizador
+            appendUserMessage(text, timeNow);
+
+            // Adicionar Loading Indicator
+            const loadingId = appendLoadingIndicator();
+
+            try {
+                const responseText = await queryGemini(text);
+                
+                // Remover o loading
+                document.getElementById(loadingId).remove();
+
+                // Adicionar mensagem de resposta da IA
+                appendAiResponse(responseText, timeNow);
+
+                // Ajustar indicador de Alerta de Segurança no Header
+                determineRiskStatus(responseText);
+
+                // Adicionar ao Histórico
+                const title = text.split('\n')[0].substring(0, 30) + (text.length > 30 ? '...' : '');
+                history.unshift({
+                    title: title,
+                    date: new Date().toLocaleDateString() + ' ' + timeNow,
+                    prompt: text,
+                    result: responseText
+                });
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById(loadingId).remove();
+                appendAiResponse(`### ⚠️ ERRO NO PROTOCOLO DE INVESTIGAÇÃO\nNão foi possível obter resposta segura dos servidores de análise.\n\n**Detalhes do erro:** ${err.message}\n\n**Solução:** Tente de novo dentro de instantes.`, timeNow);
+            } finally {
+                document.getElementById('sendBtn').disabled = false;
+                scrollToBottom();
+            }
+        }
+
+        function appendUserMessage(text, time) {
+            const container = document.getElementById('logsContainer');
+            const row = document.createElement('div');
+            row.className = 'log-row row-user';
+            row.innerHTML = `
+                <div class="log-avatar">INV</div>
+                <div class="log-bubble">
+                    <div class="log-meta">
+                        <span>REQUISITANTE</span>
+                        <span>${time}</span>
+                    </div>
+                    <div class="log-body">${escapeHTML(text)}</div>
+                </div>
+            `;
+            container.appendChild(row);
+            scrollToBottom();
+        }
+
+        function appendLoadingIndicator() {
+            const id = 'loading-' + Date.now();
+            const container = document.getElementById('logsContainer');
+            const row = document.createElement('div');
+            row.className = 'loading-row';
+            row.id = id;
+            row.innerHTML = `
+                <div class="loading-spinner-box">
+                    <i data-lucide="refresh-cw" class="loading-spinner"></i>
+                </div>
+                <div class="loading-bubble">
+                    <div class="loading-title">
+                        <span class="status-dot"></span>
+                        <span>PROCESSANDO EVIDÊNCIAS...</span>
+                    </div>
+                    <div class="loading-bar-bg">
+                        <div class="loading-bar-fill"></div>
+                    </div>
+                    <p class="loading-caption">Investigando metadados, consultando reputações e validando riscos de ameaças...</p>
+                </div>
+            `;
+            container.appendChild(row);
+            lucide.createIcons();
+            scrollToBottom();
+            return id;
+        }
+
+        function appendAiResponse(text, time) {
+            const container = document.getElementById('logsContainer');
+            const row = document.createElement('div');
+            row.className = 'log-row row-ai';
+            
+            const parsedContent = renderMarkdown(text);
+
+            row.innerHTML = `
+                <div class="log-avatar">AI</div>
+                <div class="log-bubble">
+                    <div class="log-meta">
+                        <span>SISTEMA DE ANÁLISE</span>
+                        <span>${time}</span>
+                    </div>
+                    <div class="log-body markdown-content">
+                        ${parsedContent}
+                    </div>
+                </div>
+            `;
+            container.appendChild(row);
+            lucide.createIcons();
+            scrollToBottom();
+        }
+
+        // Motor Assíncrono da API Gemini com Retry exponencial
+        async function queryGemini(prompt, retries = 5, delay = 1000) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+            };
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Servidor respondeu com status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) {
+                    throw new Error("Formato de conteúdo analítico nulo.");
+                }
+                return text;
+
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return queryGemini(prompt, retries - 1, delay * 2);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        // Parsers e Renderizadores Simples de Markdown
+        function renderMarkdown(text) {
+            if (!text) return '';
+            
+            const lines = text.split('\n');
+            let output = [];
+
+            lines.forEach(line => {
+                // Títulos Principais
+                if (line.startsWith('# ')) {
+                    const title = line.replace('# ', '').trim();
+                    let icon = 'layers';
+                    let color = 'var(--cyan-accent)';
+                    
+                    if (title.includes('RESUMO')) { icon = 'search'; color = 'var(--cyan-accent)'; }
+                    else if (title.includes('DETALHADA')) { icon = 'terminal'; color = 'var(--warning-color)'; }
+                    else if (title.includes('RISCOS')) { icon = 'alert-triangle'; color = 'var(--danger-color)'; }
+                    else if (title.includes('CONCLUSÃO')) { icon = 'shield'; color = '#c084fc'; }
+                    else if (title.includes('RECOMENDAÇÕES')) { icon = 'check-circle'; color = 'var(--success-color)'; }
+
+                    output.push(`<h2><i data-lucide="${icon}" style="color:${color}; width:18px; height:18px; vertical-align:middle; margin-right:6px;"></i> ${title}</h2>`);
+                    return;
+                }
+
+                // Subtítulos
+                if (line.startsWith('## ') || line.startsWith('### ')) {
+                    const title = line.replace(/###?\s/, '').trim();
+                    output.push(`<h3 style="font-family:monospace; font-size:13px; color:var(--cyan-accent); margin: 12px 0 6px 0;">${title}</h3>`);
+                    return;
+                }
+
+                // Caixa de Risco na Conclusão
+                if (line.includes('NÍVEL DE SEGURANÇA:')) {
+                    let level = 'SEGURO';
+                    let boxClass = 'secure';
+                    let icon = 'shield';
+
+                    if (line.toUpperCase().includes('ALTO RISCO')) {
+                        level = 'ALTO RISCO';
+                        boxClass = 'danger';
+                        icon = 'alert-triangle';
+                    } else if (line.toUpperCase().includes('SUSPEITO')) {
+                        level = 'SUSPEITO';
+                        boxClass = 'suspicious';
+                        icon = 'alert-triangle';
+                    }
+
+                    const rawText = line.replace(/\*\*/g, '').trim();
+
+                    output.push(`
+                        <div class="security-alert-box ${boxClass}">
+                            <i data-lucide="${icon}" style="width:20px; height:20px; flex-shrink:0;"></i>
+                            <span><strong>${rawText}</strong></span>
+                        </div>
+                    `);
+                    return;
+                }
+
+                // Listas
+                if (line.startsWith('- ') || line.startsWith('* ')) {
+                    const content = line.replace(/^[-*]\s/, '').trim();
+                    output.push(`<ul><li>${parseInlineBold(content)}</li></ul>`);
+                    return;
+                }
+
+                if (!line.trim()) {
+                    output.push('<div style="height:6px;"></div>');
+                    return;
+                }
+
+                // Parágrafo genérico
+                output.push(`<p>${parseInlineBold(line)}</p>`);
+            });
+
+            return output.join('');
+        }
+
+        function parseInlineBold(text) {
+            const parts = text.split(/\*\*([\s\S]*?)\*\*/g);
+            return parts.map((part, i) => {
+                if (i % 2 === 1) {
+                    return `<strong>${part}</strong>`;
+                }
+                return part;
+            }).join('');
+        }
+
+        // Gestão de Risco & Alertas do Header
+        function determineRiskStatus(text) {
+            if (text.toUpperCase().includes('ALTO RISCO')) {
+                updateAlertaStatus('ALTO RISCO DETECTADO');
+            } else if (text.toUpperCase().includes('SUSPEITO')) {
+                updateAlertaStatus('SUSPEITO');
+            } else if (text.toUpperCase().includes('SEGURO')) {
+                updateAlertaStatus('SEGURO');
+            }
+        }
+
+        function updateAlertaStatus(state) {
+            const el = document.getElementById('alertIndicator');
+            const text = document.getElementById('alertText');
+            
+            el.className = 'alert-indicator';
+            
+            if (state === 'ALTO RISCO DETECTADO') {
+                el.style.backgroundColor = 'rgba(244, 63, 94, 0.05)';
+                el.style.borderColor = 'var(--danger-color)';
+                el.style.color = 'var(--danger-color)';
+                text.textContent = 'ALERTA: ALTO RISCO';
+            } else if (state === 'SUSPEITO') {
+                el.style.backgroundColor = 'rgba(251, 191, 36, 0.05)';
+                el.style.borderColor = 'var(--warning-color)';
+                el.style.color = 'var(--warning-color)';
+                text.textContent = 'ALERTA: SUSPEITO';
+            } else {
+                el.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
+                el.style.borderColor = 'var(--success-color)';
+                el.style.color = 'var(--success-color)';
+                text.textContent = 'ALERTA: SEGURO';
+            }
+        }
+
+        // Histórico
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (history.length === 0) {
+                list.innerHTML = `<p style="font-family:monospace; font-size:11px; color:#475569; font-style:italic;">Nenhum caso analisado nesta sessão.</p>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            history.forEach((item, index) => {
+                const card = document.createElement('button');
+                card.className = 'history-card';
+                card.onclick = () => loadHistoryItem(index);
+                card.innerHTML = `
+                    <span class="history-card-title">${escapeHTML(item.title)}</span>
+                    <span class="history-card-date">${item.date}</span>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function loadHistoryItem(index) {
+            const item = history[index];
+            const logsContainer = document.getElementById('logsContainer');
+            
+            // Substituir visualização ativa pelos registros deste item histórico
+            logsContainer.innerHTML = '';
+            
+            appendUserMessage(item.prompt, item.date.split(' ')[1]);
+            appendAiResponse(item.result, item.date.split(' ')[1]);
+            
+            determineRiskStatus(item.result);
+            switchTab('chat');
+        }
+
+        // Exportador de Relatório TXT
+        function exportReport() {
+            let reportText = `=== RELATÓRIO DE INVESTIGAÇÃO DIGITAL ===\n`;
+            reportText += `Gerado em: ${new Date().toLocaleString()}\n`;
+            reportText += `==========================================\n\n`;
+            
+            // Selecionar o log de texto bruto de toda a sessão
+            const rows = document.querySelectorAll('.log-row');
+            if (rows.length <= 1) {
+                showToast("Sem registos substanciais de logs para exportar.");
+                return;
+            }
+
+            rows.forEach((row) => {
+                const role = row.classList.contains('row-user') ? 'INVESTIGADOR' : 'IA_SHERLOCK';
+                const metaText = row.querySelector('.log-meta span:nth-child(2)')?.textContent || '00:00:00';
+                
+                // Texto interno limpo
+                let contentText = "";
+                if (role === 'INVESTIGADOR') {
+                    contentText = row.querySelector('.log-body').textContent;
+                } else {
+                    contentText = extractMarkdownRawText(row.querySelector('.log-body'));
+                }
+
+                reportText += `[${metaText}] - ${role}:\n`;
+                reportText += `${contentText}\n`;
+                reportText += `------------------------------------------\n`;
+            });
+
+            const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `relatorio_sherlock_${Date.now()}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Relatório transferido com sucesso.");
+        }
+
+        function extractMarkdownRawText(element) {
+            // Conversor recursivo simples para texto legível
+            return element.innerText || element.textContent;
+        }
+
+        // Helpers utilitários
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('logsContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
