@@ -1,0 +1,1010 @@
+```react
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Shield, 
+  Search, 
+  UserX, 
+  Code, 
+  AlertTriangle, 
+  Terminal, 
+  Send, 
+  Trash2, 
+  Layers, 
+  CheckCircle, 
+  HelpCircle, 
+  Download, 
+  RefreshCw,
+  Info,
+  ExternalLink,
+  MoreVertical,
+  X,
+  FileText,
+  Mail,
+  Phone,
+  MapPin,
+  Globe,
+  Share2
+} from 'lucide-react';
+
+// Configurações do Firebase e API Gemini injetadas pelo ambiente
+const apiKey = ""; // Será preenchido em tempo de execução pelo ambiente do Canvas
+
+const SYSTEM_PROMPT = `Você é uma inteligência artificial especializada em INVESTIGAÇÃO DIGITAL, ANÁLISE DE RISCO e VERIFICAÇÃO DE INFORMAÇÕES.
+
+Seu objetivo é analisar dados, sites, perfis, scripts ou situações com profundidade técnica, pensamento crítico e abordagem investigativa.
+
+REGRAS DE COMPORTAMENTO:
+- Nunca responda de forma superficial.
+- Sempre investigue antes de concluir.
+- Questione inconsistências, padrões suspeitos e possíveis riscos.
+- Evite suposições sem base lógica.
+- Se não houver dados suficientes, deixe isso claro.
+
+CAPACIDADES PRINCIPAIS:
+1. Análise de Sites: Verificar confiabilidade, identificar sinais de golpe (phishing, scam, fraude), avaliar reputação e estrutura.
+2. Análise de Perfis: Detectar comportamento suspeito, avaliar autenticidade, identificar padrões de golpe ou manipulação.
+3. Análise Técnica: Revisar códigos (Python, PHP, bots, etc.), encontrar vulnerabilidades, sugerir melhorias e correções.
+4. Investigação Contextual: Cruzar informações, identificar contradições, construir hipóteses baseadas em evidências.
+
+FORMATO OBRIGATÓRIO DAS RESPOSTAS:
+Sempre responda seguindo estritamente essa estrutura em Markdown, usando títulos claros em letras maiúsculas:
+
+# 1. RESUMO
+[Resumo direto e conciso da análise]
+
+# 2. ANÁLISE DETALHADA
+[Explique detalhadamente os pontos técnicos, evidências e observações coletadas]
+
+# 3. RISCOS IDENTIFICADOS
+[Liste os riscos encontrados em formato de tópicos ou informe se nenhum risco foi detectado]
+
+# 4. CONCLUSÃO
+Classifique claramente o nível de risco em uma nova linha como:
+**NÍVEL DE SEGURANÇA: SEGURO** ou **NÍVEL DE SEGURANÇA: SUSPEITO** ou **NÍVEL DE SEGURANÇA: ALTO RISCO**
+[Justificativa rápida para a classificação]
+
+# 5. RECOMENDAÇÕES
+[Instruções claras e acionáveis sobre o que o usuário deve fazer ou evitar]
+
+ESTILO:
+- Linguagem clara, direta e incisiva.
+- Tom extremamente profissional (estilo investigador digital/perito forense).
+- Foco absoluto em lógica, dados e evidências.`;
+
+// Lista contendo exatamente as 60 melhores funcionalidades de OSINT categorizadas
+const osintTools = [
+  // Categoria 1: Usuários & Pessoas (1 a 10)
+  { id: 1, cat: "Pessoas", name: "Sherlock Nicknames", icon: UserX, desc: "Busca e varredura automatizada de apelidos em mais de 400 redes sociais.", placeholder: "NOME DO PROTOCOLO OSINT: Sherlock Nicknames\n\nInstruções: Forneça um plano detalhado para rastrear contas em múltiplos domínios com base no apelido ou username fornecido.\n\nUsername de interesse: [Insira o nickname/username aqui]" },
+  { id: 2, cat: "Pessoas", name: "Namechk Registry", icon: UserX, desc: "Pesquisa de disponibilidade de domínios e registros de login em redes sociais corporativas.", placeholder: "NOME DO PROTOCOLO OSINT: Namechk Registry\n\nAlvo de pesquisa de disponibilidade de login:\nUsername: [Insira o username]" },
+  { id: 3, cat: "Pessoas", name: "Análise de Vazamento de CPF", icon: Shield, desc: "Investigação de dados vazados atrelados a um CPF (vazamento cadastral).", placeholder: "NOME DO PROTOCOLO OSINT: Lupa de CPF/Vazamento\n\nObjetivo: Identificar metodologias e locais públicos de consulta de vazamento de dados ligados ao CPF.\n\nDados conhecidos públicos do CPF: [Insira aqui]" },
+  { id: 4, cat: "Pessoas", name: "Certidões & Diários Oficiais", icon: FileText, desc: "Rastreamento judicial em bancos de dados do governo e diários de justiça.", placeholder: "NOME DO PROTOCOLO OSINT: Certidões e Diários Oficiais\n\nNome completo do investigado: [Insira o nome]" },
+  { id: 5, cat: "Pessoas", name: "Mapeamento Genealógico (FamilyTree)", icon: UserX, desc: "Descobrir parentes de primeiro grau através de registros familiares públicos na web.", placeholder: "NOME DO PROTOCOLO OSINT: Mapeamento Genealógico\n\nAlvo de investigação: [Insira os nomes de parentes conhecidos para cruzar dados]" },
+  { id: 6, cat: "Pessoas", name: "Assinaturas Digitais & Selos", icon: CheckCircle, desc: "Verificação de autenticidade em cartórios virtuais e autenticação de chaves.", placeholder: "NOME DO PROTOCOLO OSINT: Assinaturas Digitais e Selos\n\nDados brutos do token ou cartório eletrônico: [Insira os dados aqui]" },
+  { id: 7, cat: "Pessoas", name: "Registros de Conselhos (CRM/OAB/CREA)", icon: CheckCircle, desc: "Validação de credenciais e atuação legal de profissionais registrados.", placeholder: "NOME DO PROTOCOLO OSINT: Validação de Conselho Profissional\n\nConselho e Registro: [Ex: OAB/SP 123456]" },
+  { id: 8, cat: "Pessoas", name: "Sociedades & MEI/CNPJ", icon: FileText, desc: "Mapeamento societário, capital de empresas e filiais de pessoas físicas.", placeholder: "NOME DO PROTOCOLO OSINT: Sociedades & CNPJ\n\nEmpresa / Razão Social ou CNPJ: [Insira os dados societários]" },
+  { id: 9, cat: "Pessoas", name: "LinkedIn & Portais de Currículos", icon: UserX, desc: "Mineração de histórico profissional e dados públicos expostos de empregos anteriores.", placeholder: "NOME DO PROTOCOLO OSINT: LinkedIn Mining\n\nLink do perfil profissional ou dados expostos: [Insira aqui]" },
+  { id: 10, cat: "Pessoas", name: "Transparência Governamental", icon: Shield, desc: "Pesquisa de vínculos públicos de servidores ativos, salários e licitações.", placeholder: "NOME DO PROTOCOLO OSINT: Transparência Pública\n\nNome ou órgão de interesse: [Insira aqui]" },
+
+  // Categoria 2: E-mails & Credenciais (11 a 20)
+  { id: 11, cat: "E-mails", name: "Hunter.io Corporate Scan", icon: Mail, desc: "Adivinhação de estrutura e mapeamento de emails profissionais vinculados a um domínio.", placeholder: "NOME DO PROTOCOLO OSINT: Hunter.io Corporate\n\nDomínio de interesse: [Ex: empresa.com]" },
+  { id: 12, cat: "E-mails", name: "HaveIBeenPwned Check", icon: Mail, desc: "Verificação rápida de violações de dados conhecidas associadas ao endereço de e-mail.", placeholder: "NOME DO PROTOCOLO OSINT: HaveIBeenPwned Audit\n\nE-mail sob verificação: [Ex: alvo@email.com]" },
+  { id: 13, cat: "E-mails", name: "DeHashed Password Hash Leak", icon: Shield, desc: "Varredura avançada por senhas vazadas em texto claro e chaves criptográficas hashes.", placeholder: "NOME DO PROTOCOLO OSINT: DeHashed Database Scan\n\nE-mail ou Hash suspeito: [Insira aqui]" },
+  { id: 14, cat: "E-mails", name: "Email Permutator Generator", icon: Mail, desc: "Gerador de combinações possíveis para descobrir e-mails reais de executivos.", placeholder: "NOME DO PROTOCOLO OSINT: Permutador de E-mails\n\nNome: [Nome]\nSobrenome: [Sobrenome]\nDomínio da empresa: [empresa.com]" },
+  { id: 15, cat: "E-mails", name: "Detetor de Emails Descartáveis", icon: Mail, desc: "Validação se o e-mail cadastrado pertence a serviços de caixas postais temporárias.", placeholder: "NOME DO PROTOCOLO OSINT: Verificação de Inbox Descartável\n\nDomínio do e-mail suspeito: [Ex: tempmail.com]" },
+  { id: 16, cat: "E-mails", name: "Análise de Header (Cabeçalho Eml)", icon: Terminal, desc: "Localização de endereço IP de servidores e rota de origem decodificando o arquivo do e-mail.", placeholder: "NOME DO PROTOCOLO OSINT: Engenharia Reversa de Cabeçalho de E-mail\n\nCole o texto brutas das propriedades do cabeçalho (.eml / .msg):\n[Cole aqui]" },
+  { id: 17, cat: "E-mails", name: "Registros de DNS MX Mail", icon: Globe, desc: "Mapeamento dos servidores de e-mail de destino para validação de entrega e spoofing.", placeholder: "NOME DO PROTOCOLO OSINT: MX Record Check\n\nDomínio corporativo: [Ex: empresa.com]" },
+  { id: 18, cat: "E-mails", name: "Gravatar Target Search", icon: UserX, desc: "Cruzamento de hashes MD5 de e-mail para encontrar perfis e avatares.", placeholder: "NOME DO PROTOCOLO OSINT: Gravatar Reverse\n\nE-mail do alvo: [Ex: alvo@email.com]" },
+  { id: 19, cat: "E-mails", name: "Holehe Account Finder", icon: Mail, desc: "Rastreio em redes sociais de perfis que possuem contas cadastradas com este endereço.", placeholder: "NOME DO PROTOCOLO OSINT: Holehe Account Scanner\n\nE-mail de interesse: [Ex: alvo@email.com]" },
+  { id: 20, cat: "E-mails", name: "Leak-Lookup Registry", icon: Shield, desc: "Varredura rápida por dados corporativos indexados em bases de vazamentos históricos.", placeholder: "NOME DO PROTOCOLO OSINT: Leak-Lookup Search\n\nDomínio corporativo ou e-mail pessoal: [Insira aqui]" },
+
+  // Categoria 3: Telefones & Comunicação (21 a 30)
+  { id: 21, cat: "Telefones", name: "TrueCaller CallerID", icon: Phone, desc: "Mapear o nome de registro e operadora de um número de telefone com bases globais.", placeholder: "NOME DO PROTOCOLO OSINT: TrueCaller Reverse Lookup\n\nNúmero de telefone com DDI (Ex: 55): [Ex: +55 (11) 99999-9999]" },
+  { id: 22, cat: "Telefones", name: "Sync.me Contact Finder", icon: Phone, desc: "Identificar nome, redes sociais e foto vinculadas a um número de celular ativo.", placeholder: "NOME DO PROTOCOLO OSINT: Sync.me Database Search\n\nNúmero de telefone: [Ex: +55 11 98888-8888]" },
+  { id: 23, cat: "Telefones", name: "Whoscall Spam Index", icon: Phone, desc: "Determinar se o telefone foi relatado como golpes, vendas ou phishing ativo.", placeholder: "NOME DO PROTOCOLO OSINT: Whoscall Spam Check\n\nNúmero de telefone: [Insira aqui]" },
+  { id: 24, cat: "Telefones", name: "WhatsApp OSINT Profile", icon: Share2, desc: "Capturar dados públicos do perfil do WhatsApp: foto de exibição e recado.", placeholder: "NOME DO PROTOCOLO OSINT: WhatsApp OSINT Profile\n\nNúmero de telefone: [Ex: 5511999999999]" },
+  { id: 25, cat: "Telefones", name: "Telegram Bot Phone Map", icon: Share2, desc: "Encontrar IDs únicos e nomes de exibição no Telegram vinculados ao telefone.", placeholder: "NOME DO PROTOCOLO OSINT: Telegram Phone Mapping\n\nID ou telefone de interesse: [Insira aqui]" },
+  { id: 26, cat: "Telefones", name: "Prefixo & Portabilidade", icon: Phone, desc: "Investigar se o telefone realizou portabilidade para outras operadoras recentemente.", placeholder: "NOME DO PROTOCOLO OSINT: Portabilidade Operadora\n\nNúmero de telefone: [Insira aqui]" },
+  { id: 27, cat: "Telefones", name: "Códigos MCC & MNC Carrier", icon: Terminal, desc: "Identificar dados de geolocalização física da operadora de cobertura GSM.", placeholder: "NOME DO PROTOCOLO OSINT: MCC/MNC Carrier Audit\n\nNúmero ou código de operadora: [Insira aqui]" },
+  { id: 28, cat: "Telefones", name: "Consulta Pix por Telefone", icon: Shield, desc: "Verificar se o número de telefone está cadastrado como chave Pix em algum banco nacional.", placeholder: "NOME DO PROTOCOLO OSINT: Chave Pix Telefone\n\nNúmero de celular: [Insira aqui]" },
+  { id: 29, cat: "Telefones", name: "Validador de Caller ID Spoof", icon: Phone, desc: "Identificar se chamadas entrantes foram falsificadas via VOIP de saída.", placeholder: "NOME DO PROTOCOLO OSINT: Spoofing Caller ID Check\n\nTelefone ou log de chamada: [Insira aqui]" },
+  { id: 30, cat: "Telefones", name: "HLR Lookup (Chip Conectado)", icon: Phone, desc: "Verificação do Home Location Register para saber se o chip está ativo nas antenas.", placeholder: "NOME DO PROTOCOLO OSINT: HLR Lookup GSM\n\nNúmero completo com DDI/DDD: [Insira aqui]" },
+
+  // Categoria 4: Geolocalização & Imagens (31 a 40)
+  { id: 31, cat: "Geolocalização", name: "EXIF Metadata Extractor", icon: MapPin, desc: "Extrair dados de metadados como geolocalização por satélite (GPS) e data da câmera em fotos.", placeholder: "NOME DO PROTOCOLO OSINT: EXIF Metadata Analyzer\n\nMetadados brutos ou propriedades encontradas na imagem:\n[Cole aqui]" },
+  { id: 32, cat: "Geolocalização", name: "Busca Reversa Google/Yandex", icon: Search, desc: "Descobrir cópias de uma mesma imagem em perfis fakes de namoro, scams ou notícias falsas.", placeholder: "NOME DO PROTOCOLO OSINT: Reverse Image Search\n\nDescrição visual da foto ou links onde foi postada: [Descreva a imagem]" },
+  { id: 33, cat: "Geolocalização", name: "PimEyes Recon Facial", icon: UserX, desc: "Uso de inteligência artificial de detecção biométrica facial na web aberta.", placeholder: "NOME DO PROTOCOLO OSINT: PimEyes Face Recon\n\nNome e possíveis redes sociais do alvo: [Insira os dados aqui]" },
+  { id: 34, cat: "Geolocalização", name: "Coordenadas por GeoEstimation", icon: MapPin, desc: "Dedução do local exato da foto por meio de vegetação, fiação e postes.", placeholder: "NOME DO PROTOCOLO OSINT: GeoEstimation Visual\n\nDescreva detalhes visuais do plano de fundo da foto (placas, sol, arquitetura): [Descreva aqui]" },
+  { id: 35, cat: "Geolocalização", name: "SunCalc Shadow (Hora do Sol)", icon: MapPin, desc: "Identificação da hora e data exata em que uma foto foi capturada de acordo com as sombras.", placeholder: "NOME DO PROTOCOLO OSINT: SunCalc Shadow Calculator\n\nLocal estimado, data aproximada e comportamento das sombras: [Insira aqui]" },
+  { id: 36, cat: "Geolocalização", name: "FlightRadar24 (Voos)", icon: MapPin, desc: "Análise histórica de voos na coordenada para identificar aeronaves de fuga ou transporte.", placeholder: "NOME DO PROTOCOLO OSINT: FlightRadar24 Log Analysis\n\nNúmero da cauda da aeronave ou aeroporto e horário: [Insira]" },
+  { id: 37, cat: "Geolocalização", name: "MarineTraffic (Marítimo)", icon: MapPin, desc: "Rastreio e identificação de navios cargueiros e cruzeiros próximos à costa da foto.", placeholder: "NOME DO PROTOCOLO OSINT: MarineTraffic Port Search\n\nCoordenadas do mar ou nome do porto/navio: [Insira aqui]" },
+  { id: 38, cat: "Geolocalização", name: "Google Street View Histórico", icon: MapPin, desc: "Busca de evolução de fachadas de casas e comércio nos últimos 10 anos.", placeholder: "NOME DO PROTOCOLO OSINT: Street View Timeline\n\nCoordenadas de GPS ou endereço do local: [Insira]" },
+  { id: 39, cat: "Geolocalização", name: "Consultas OpenStreetMap Overpass", icon: MapPin, desc: "Filtragem de locais cruzando dados geográficos estruturados específicos.", placeholder: "NOME DO PROTOCOLO OSINT: Overpass OSM Query\n\nReferências geográficas próximas (ex: igreja, hospital): [Descreva]" },
+  { id: 40, cat: "Geolocalização", name: "Satélite Sentinel-2", icon: MapPin, desc: "Mapeamento aéreo gratuito por satélite militar e militarizado para imagens recentes.", placeholder: "NOME DO PROTOCOLO OSINT: Sentinel-2 Satellite Mapping\n\nCoordenadas Decimais de interesse: [Ex: -23.5505, -46.6333]" },
+
+  // Categoria 5: Sites & Infraestrutura (41 a 50)
+  { id: 41, cat: "Infraestrutura", name: "Whois Advanced History", icon: Globe, desc: "Visualizar históricos de e-mail e nomes que já possuíram o registro deste site.", placeholder: "NOME DO PROTOCOLO OSINT: Whois History Inspection\n\nDomínio do site investigado: [Ex: site-suspeito.com]" },
+  { id: 42, cat: "Infraestrutura", name: "DNSDumpster (Mapeamento)", icon: Globe, desc: "Identificar subdomínios ocultos da empresa e portas de e-mail expostas.", placeholder: "NOME DO PROTOCOLO OSINT: DNSDumpster DNS Mapping\n\nDomínio de interesse: [Ex: alvo.com]" },
+  { id: 43, cat: "Infraestrutura", name: "Shodan IOT Search Engine", icon: Terminal, desc: "Localização de câmeras vulneráveis, servidores expostos e IOT no IP.", placeholder: "NOME DO PROTOCOLO OSINT: Shodan Target Scan\n\nEndereço de IP público: [Ex: 192.168.1.1]" },
+  { id: 44, cat: "Infraestrutura", name: "Censys SSL Inspection", icon: Globe, desc: "Varredura de certificados de segurança e portas ativas do servidor de hospedagem.", placeholder: "NOME DO PROTOCOLO OSINT: Censys Certificate Analysis\n\nIP ou Domínio: [Ex: 104.244.42.1]" },
+  { id: 45, cat: "Infraestrutura", name: "WayBack Machine Explorer", icon: FileText, desc: "Recuperar posts apagados e versões antigas de páginas de golpes fora do ar.", placeholder: "NOME DO PROTOCOLO OSINT: Wayback Machine Web Archive\n\nURL completa a rastrear: [Ex: site.com/pagina]" },
+  { id: 46, cat: "Infraestrutura", name: "URLScan.io Sandbox", icon: Code, desc: "Acessar sites suspeitos em caixa de areia segura para ver redirecionamentos sem se infectar.", placeholder: "NOME DO PROTOCOLO OSINT: URLScan.io Safe Scan\n\nURL do site suspeito: [Ex: site-suspeito.com/login]" },
+  { id: 47, cat: "Infraestrutura", name: "BuiltWith Technographics", icon: Code, desc: "Visualizar pixels de rastreamento de anúncios, ID do Google Analytics e ferramentas.", placeholder: "NOME DO PROTOCOLO OSINT: BuiltWith Tech Analysis\n\nDomínio alvo: [Ex: lojavirtual.com]" },
+  { id: 48, cat: "Infraestrutura", name: "VirusTotal Reputation", icon: Shield, desc: "Verificação rápida de reputação de arquivos recebidos por phishing e IPs de comando.", placeholder: "NOME DO PROTOCOLO OSINT: VirusTotal IP & File Scan\n\nIP, Hash do arquivo ou Domínio suspeito: [Insira aqui]" },
+  { id: 49, cat: "Infraestrutura", name: "Certificados SSL CT Logs", icon: Globe, desc: "Mineração de Certificate Transparency Logs para encontrar domínios novos e de testes.", placeholder: "NOME DO PROTOCOLO OSINT: Certificate Transparency Audit\n\nDomínio base: [Ex: banco-oficial.com]" },
+  { id: 50, cat: "Infraestrutura", name: "Robots.txt Explorer", icon: FileText, desc: "Ler páginas de configurações ou diretórios ocultos do site proibidos para buscadores.", placeholder: "NOME DO PROTOCOLO OSINT: Robots.txt Analysis\n\nURL raiz do site: [Ex: site.com]" },
+
+  // Categoria 6: Redes Sociais (51 a 60)
+  { id: 51, cat: "Redes Sociais", name: "Facebook Graph Search", icon: Share2, desc: "Encontrar IDs numéricos ocultos de perfis e interações de amizades.", placeholder: "NOME DO PROTOCOLO OSINT: Facebook Graph Query\n\nPerfil ou ID do Facebook: [Insira aqui]" },
+  { id: 52, cat: "Redes Sociais", name: "Twitter/X Advanced Filters", icon: Share2, desc: "Uso de buscas complexas por data e conversas antigas deletadas da conta.", placeholder: "NOME DO PROTOCOLO OSINT: Twitter Advanced Search\n\nUsername (@usuario) e palavras-chave de busca: [Insira aqui]" },
+  { id: 53, cat: "Redes Sociais", name: "LinkedIn Corporate Mining", icon: UserX, desc: "Mapear o organograma executivo e funcionários de TI de uma empresa alvo.", placeholder: "NOME DO PROTOCOLO OSINT: LinkedIn Corporate Mining\n\nNome ou domínio da empresa: [Insira]" },
+  { id: 54, cat: "Redes Sociais", name: "Instagram ID Tracer", icon: Share2, desc: "Descobrir o ID de registro fixo da conta para identificar quando mudarem de nome de usuário.", placeholder: "NOME DO PROTOCOLO OSINT: Instagram ID Tracker\n\nUsername atual: [Ex: @usuario]" },
+  { id: 55, cat: "Redes Sociais", name: "TikTok Metadata Extractor", icon: Share2, desc: "Extrair horários exatos de upload, ID de vídeo de golpes e links do perfil.", placeholder: "NOME DO PROTOCOLO OSINT: TikTok Video Metadados\n\nLink do vídeo: [Cole aqui]" },
+  { id: 56, cat: "Redes Sociais", name: "Reddit User Analyzer", icon: Share2, desc: "Análise comportamental estatística de subreddits de hackers e vazamentos do usuário.", placeholder: "NOME DO PROTOCOLO OSINT: Reddit Behavioral Analysis\n\nUsername do Reddit: [Ex: u/nome]" },
+  { id: 57, cat: "Redes Sociais", name: "Strava Coordinates Mapping", icon: MapPin, desc: "Mapear corridas públicas frequentes de executivos para rastrear trabalho e residência.", placeholder: "NOME DO PROTOCOLO OSINT: Strava Heatmap Tracking\n\nPerfil ou localização do alvo: [Insira aqui]" },
+  { id: 58, cat: "Redes Sociais", name: "YouTube Metadata Inspection", desc: "Coleta de detalhes ocultos de vídeos, descrições e geolocalização do upload.", placeholder: "NOME DO PROTOCOLO OSINT: YouTube Metadata Extraction\n\nLink do vídeo do YouTube: [Cole aqui]", icon: Share2 },
+  { id: 59, cat: "Redes Sociais", name: "Linktree OSINT Aggregator", icon: Share2, desc: "Mapear todas as outras contas e redes sociais expostas no agregador do investigado.", placeholder: "NOME DO PROTOCOLO OSINT: Linktree Aggregator\n\nURL do Linktree: [Ex: linktr.ee/usuario]" },
+  { id: 60, cat: "Redes Sociais", name: "Discord ID Info Extraction", icon: Code, desc: "Extrair data precisa de criação de conta do Discord por meio de ID flutuante.", placeholder: "NOME DO PROTOCOLO OSINT: Discord ID Info\n\nID do usuário do Discord: [Ex: 123456789012345678]" }
+];
+
+export default function App() {
+  const [messages, setMessages] = useState([
+    {
+      id: 'welcome',
+      role: 'assistant',
+      content: `# 1. RESUMO\nOlá, Investigador. Sou sua Inteligência Artificial de Investigação Digital, Análise de Risco e Perícia Forense. Estou online e pronto para iniciar.\n\n# 2. ANÁLISE DETALHADA\nPosso ajudar você a analisar:\n- **Links & Portais**: Identificação de Phishing, fraudes e reputação.\n- **Perfis de Usuários**: Padrões de engenharia social ou bots suspeitos.\n- **Códigos e Scripts**: Verificação de falhas de segurança e backdoors.\n- **Dados e Casos**: Cruzamento de informações para criar cenários de risco.\n\n# 3. RISCOS IDENTIFICADOS\n- Operações em andamento exigem análise lógica rigorosa para evitar falsos positivos.\n\n# 4. CONCLUSÃO\n**NÍVEL DE SEGURANÇA: SEGURO**\nPronto para receber dados e prompts estruturados.\n\n# 5. RECOMENDAÇÕES\nSelecione um dos templates rápidos à esquerda ou clique no menu de **três pontos (Módulos OSINT)** acima para escolher entre as **60 melhores técnicas OSINT** do mercado.`,
+      timestamp: new Date().toLocaleTimeString()
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'history' | 'about'
+  const [history, setHistory] = useState([]);
+  const [currentAnalysisClass, setCurrentAnalysisClass] = useState('normal'); // 'normal' | 'secure' | 'suspicious' | 'danger'
+  
+  // Custom Confirmation Modals State (Substituindo alerts/window.confirm)
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isOsintHubOpen, setIsOsintHubOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('Todas');
+  const [statusNotification, setStatusNotification] = useState('');
+
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Função para exibir mensagem temporária de status
+  const triggerNotification = (text) => {
+    setStatusNotification(text);
+    setTimeout(() => {
+      setStatusNotification('');
+    }, 3500);
+  };
+
+  // Requisição para o Gemini 2.5 Flash Preview com Exponential Backoff
+  const queryGemini = async (userPrompt, retries = 5, delay = 1000) => {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    
+    const payload = {
+      contents: [{ parts: [{ text: userPrompt }] }],
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] }
+    };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na API Gemini: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Resposta inválida recebida da IA.");
+      }
+      return text;
+    } catch (error) {
+      if (retries > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return queryGemini(userPrompt, retries - 1, delay * 2);
+      } else {
+        throw error;
+      }
+    }
+  };
+
+  const handleSend = async (textToSend = input) => {
+    if (!textToSend.trim()) return;
+
+    const userMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: textToSend,
+      timestamp: new Date().toLocaleTimeString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const reply = await queryGemini(textToSend);
+      
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      determineRiskColor(reply);
+
+      // Salva no histórico
+      const newHistoryItem = {
+        id: Date.now(),
+        title: textToSend.split('\n')[0].substring(0, 30) + (textToSend.length > 30 ? '...' : ''),
+        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+        prompt: textToSend,
+        result: reply
+      };
+      setHistory(prev => [newHistoryItem, ...prev]);
+
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: `### ⚠️ ERRO NO PROTOCOLO DE INVESTIGAÇÃO\nNão foi possível obter resposta dos servidores centrais de análise.\n\n**Detalhes do Erro:** ${error.message}\n\n**Solução:** Verifique sua conexão e tente novamente.`,
+        timestamp: new Date().toLocaleTimeString()
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const determineRiskColor = (text) => {
+    if (text.toUpperCase().includes('ALTO RISCO')) {
+      setCurrentAnalysisClass('danger');
+    } else if (text.toUpperCase().includes('SUSPEITO')) {
+      setCurrentAnalysisClass('suspicious');
+    } else if (text.toUpperCase().includes('SEGURO')) {
+      setCurrentAnalysisClass('secure');
+    } else {
+      setCurrentAnalysisClass('normal');
+    }
+  };
+
+  const clearChatConfirmed = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: `# 1. RESUMO\nLogs limpos. Nova sessão investigativa iniciada.\n\n# 2. ANÁLISE DETALHADA\nPronto para processar novas entradas analíticas.\n\n# 3. RISCOS IDENTIFICADOS\n- Sem dados na sessão atual.\n\n# 4. CONCLUSÃO\n**NÍVEL DE SEGURANÇA: SEGURO**\nNenhum perigo iminente detectado.\n\n# 5. RECOMENDAÇÕES\nInsira os dados que você deseja verificar nos canais de entrada.`,
+        timestamp: new Date().toLocaleTimeString()
+      }
+    ]);
+    setCurrentAnalysisClass('normal');
+    setShowClearConfirm(false);
+    triggerNotification("Registros do console reiniciados.");
+  };
+
+  const useTemplate = (templateType) => {
+    let promptText = "";
+    switch (templateType) {
+      case 'website':
+        promptText = "Investigar o seguinte site quanto a riscos de fraude, phishing ou scam:\nURL: [Insira a URL aqui]\nNome comercial (se houver): [Nome]\nObservações suspeitas: [O que fez você desconfiar?]";
+        break;
+      case 'profile':
+        promptText = "Analisar o seguinte perfil de rede social quanto à autenticidade e risco de golpe:\nPlataforma: [Ex: Instagram, Telegram, LinkedIn]\nNome/User: [User/Link]\nComportamento observado: [Ex: Ofereceu ganho fácil, fotos parecem falsas, criou pressa]";
+        break;
+      case 'code':
+        promptText = "Efetuar análise técnica de vulnerabilidades e segurança no seguinte código:\nLanguage: [Ex: Python, PHP, JS]\nCódigo:\n```\n[Cole seu código aqui]\n```";
+        break;
+      case 'context':
+        promptText = "Análise investigativa sobre a seguinte proposta ou situação recebida:\n[Descreva detalhadamente a proposta, mensagem suspeita, oferta de emprego fácil, ou transação financeira duvidosa que deseja cruzar dados]";
+        break;
+    }
+    setInput(promptText);
+    setActiveTab('chat');
+  };
+
+  // Carrega template de OSINT selecionado no Hub de 60 Funcionalidades
+  const selectOsintTool = (tool) => {
+    setInput(tool.placeholder);
+    setIsOsintHubOpen(false);
+    setActiveTab('chat');
+    triggerNotification(`Protocolo OSINT: [${tool.name}] carregado no console!`);
+  };
+
+  const loadHistoryItem = (item) => {
+    setMessages([
+      {
+        id: 'hist-user-' + item.id,
+        role: 'user',
+        content: item.prompt,
+        timestamp: item.date
+      },
+      {
+        id: 'hist-ai-' + item.id,
+        role: 'assistant',
+        content: item.result,
+        timestamp: item.date
+      }
+    ]);
+    determineRiskColor(item.result);
+    setActiveTab('chat');
+  };
+
+  const exportCurrentInvestigation = () => {
+    let reportText = `=== RELATÓRIO DE INVESTIGAÇÃO DIGITAL ===\n`;
+    reportText += `Gerado em: ${new Date().toLocaleString()}\n`;
+    reportText += `==========================================\n\n`;
+    
+    messages.forEach((m) => {
+      reportText += `[${m.timestamp}] - ${m.role.toUpperCase()}:\n`;
+      reportText += `${m.content}\n`;
+      reportText += `------------------------------------------\n`;
+    });
+
+    const blob = new Blob([reportText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `investigacao_digital_${Date.now()}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Renderizador simples de Markdown para estilizar os logs de investigação
+  const renderMarkdown = (text) => {
+    if (!text) return null;
+    
+    return text.split('\n').map((line, index) => {
+      // Títulos principais
+      if (line.startsWith('# ')) {
+        const title = line.replace('# ', '');
+        let icon = <Layers className="w-5 h-5 mr-2 text-cyan-400 inline" />;
+        
+        if (title.includes('RESUMO')) icon = <Search className="w-5 h-5 mr-2 text-cyan-400 inline" />;
+        if (title.includes('DETALHADA')) icon = <Terminal className="w-5 h-5 mr-2 text-yellow-500 inline" />;
+        if (title.includes('RISCOS')) icon = <AlertTriangle className="w-5 h-5 mr-2 text-red-500 inline" />;
+        if (title.includes('CONCLUSÃO')) icon = <Shield className="w-5 h-5 mr-2 text-purple-400 inline" />;
+        if (title.includes('RECOMENDAÇÕES')) icon = <CheckCircle className="w-5 h-5 mr-2 text-green-400 inline" />;
+
+        return (
+          <h2 key={index} className="flex items-center text-md md:text-lg font-bold text-gray-100 border-b border-gray-800 pb-2 mt-6 mb-3 tracking-wider font-mono">
+            {icon} {title}
+          </h2>
+        );
+      }
+
+      // Títulos secundários
+      if (line.startsWith('## ') || line.startsWith('### ')) {
+        return (
+          <h3 key={index} className="text-sm md:text-md font-semibold text-cyan-300 mt-4 mb-2 font-mono">
+            {line.replace(/###?\s/, '')}
+          </h3>
+        );
+      }
+
+      // Classificação do nível de segurança
+      if (line.includes('NÍVEL DE SEGURANÇA:')) {
+        let bgClass = "bg-gray-800 text-gray-300 border-gray-700";
+        if (line.includes('ALTO RISCO')) bgClass = "bg-red-950/40 text-red-400 border-red-500/50 pulse-glow";
+        if (line.includes('SUSPEITO')) bgClass = "bg-yellow-950/40 text-yellow-400 border-yellow-500/50";
+        if (line.includes('SEGURO')) bgClass = "bg-green-950/40 text-green-400 border-green-500/50";
+
+        return (
+          <div key={index} className={`my-4 p-4 rounded-lg border flex items-center gap-3 font-mono text-xs md:text-sm ${bgClass}`}>
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <span className="font-bold tracking-widest">{line.replace(/\*\*/g, '')}</span>
+            </div>
+          </div>
+        );
+      }
+
+      // Bullet points e listas
+      if (line.startsWith('- ') || line.startsWith('* ')) {
+        const cleanLine = line.replace(/^[-*]\s/, '');
+        return (
+          <ul key={index} className="list-disc list-inside text-gray-300 pl-4 mb-1 text-xs md:text-sm leading-relaxed">
+            <li>{parseInlineBold(cleanLine)}</li>
+          </ul>
+        );
+      }
+
+      // Linhas em branco
+      if (!line.trim()) {
+        return <div key={index} className="h-2" />;
+      }
+
+      // Parágrafo padrão
+      return (
+        <p key={index} className="text-gray-300 text-xs md:text-sm mb-2 leading-relaxed font-sans">
+          {parseInlineBold(line)}
+        </p>
+      );
+    });
+  };
+
+  // Processa negritos simples (**texto**) no conteúdo
+  const parseInlineBold = (text) => {
+    const parts = text.split(/\*\*([\s\S]*?)\*\*/g);
+    return parts.map((part, i) => {
+      if (i % 2 === 1) {
+        return <strong key={i} className="text-cyan-300 font-semibold">{part}</strong>;
+      }
+      return part;
+    });
+  };
+
+  // Filtragem de ferramentas OSINT por categoria e termo de pesquisa
+  const filteredTools = osintTools.filter(tool => {
+    const matchesCategory = selectedCategory === 'Todas' || tool.cat === selectedCategory;
+    const matchesSearch = tool.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          tool.desc.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          tool.cat.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const categories = ['Todas', 'Pessoas', 'E-mails', 'Telefones', 'Geolocalização', 'Infraestrutura', 'Redes Sociais'];
+
+  return (
+    <div 
+      className="min-h-screen bg-[#0a0f1d] text-gray-200 flex flex-col font-sans selection:bg-cyan-500 selection:text-black"
+      style={{ zoom: '85%' }} // Ajuste global do zoom solicitado (85%)
+    >
+      
+      {/* Top Banner & Status bar */}
+      <header className="bg-[#0e172a] border-b border-gray-800 px-4 py-3 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="bg-cyan-950 p-2 rounded-lg border border-cyan-500/30">
+            <Shield className="w-6 h-6 text-cyan-400" />
+          </div>
+          <div>
+            <h1 className="text-sm md:text-lg font-bold font-mono tracking-wider text-gray-100 flex items-center gap-2">
+              SHERLOCK-GPT <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-sans animate-pulse">OSINT</span>
+            </h1>
+            <p className="text-[10px] md:text-xs text-gray-400 font-mono">INTEGRIDADE • INVESTIGAÇÃO DIGITAL • ANÁLISE DE VULNERABILIDADES</p>
+          </div>
+        </div>
+
+        {/* Status System indicators */}
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="hidden sm:flex items-center gap-1.5 bg-gray-900 px-2.5 py-1 rounded border border-gray-800">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+            <span className="text-gray-400">STATUS:</span>
+            <span className="text-green-400">OPERACIONAL</span>
+          </div>
+
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded border ${
+            currentAnalysisClass === 'danger' ? 'bg-red-950/50 border-red-500 text-red-400' :
+            currentAnalysisClass === 'suspicious' ? 'bg-yellow-950/50 border-yellow-500 text-yellow-400' :
+            currentAnalysisClass === 'secure' ? 'bg-green-950/50 border-green-500 text-green-400' :
+            'bg-gray-900 border-gray-800 text-cyan-400'
+          }`}>
+            <Terminal className="w-3.5 h-3.5" />
+            <span className="uppercase text-[10px] font-bold">
+              ALERTA: {currentAnalysisClass === 'danger' ? 'ALTO RISCO DETECTADO' : 
+                        currentAnalysisClass === 'suspicious' ? 'SUSPEITO' : 
+                        currentAnalysisClass === 'secure' ? 'SEGURO' : 'MONITORANDO'}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Workspace */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        {/* Left Control Panel / Sidebar */}
+        <aside className="w-full md:w-80 bg-[#0d1527] border-r border-gray-800 flex flex-col flex-shrink-0">
+          
+          {/* Navigation Tabs */}
+          <div className="flex border-b border-gray-800 p-2 gap-1 text-xs font-mono">
+            <button 
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 py-2 px-3 rounded text-center transition-all ${activeTab === 'chat' ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/20' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}`}
+            >
+              Terminal
+            </button>
+            <button 
+              onClick={() => setActiveTab('history')}
+              className={`flex-1 py-2 px-3 rounded text-center transition-all relative ${activeTab === 'history' ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/20' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}`}
+            >
+              Histórico
+              {history.length > 0 && (
+                <span className="absolute top-1 right-1 bg-cyan-500 text-black text-[9px] font-bold px-1 rounded-full">{history.length}</span>
+              )}
+            </button>
+            <button 
+              onClick={() => setActiveTab('about')}
+              className={`flex-1 py-2 px-3 rounded text-center transition-all ${activeTab === 'about' ? 'bg-cyan-950 text-cyan-400 border border-cyan-500/20' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'}`}
+            >
+              Guia
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {activeTab === 'chat' && (
+              <>
+                <div>
+                  <h3 className="text-xs font-bold text-gray-400 font-mono tracking-wider uppercase mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-cyan-500" />
+                      Módulos Rápidos
+                    </span>
+                    <button 
+                      onClick={() => setIsOsintHubOpen(true)}
+                      className="text-cyan-400 hover:text-cyan-300 text-[10px] font-bold underline flex items-center gap-1"
+                      title="Ver todos os 60 Módulos de Investigação OSINT"
+                    >
+                      + 60 OSINT
+                    </button>
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    <button 
+                      onClick={() => useTemplate('website')}
+                      className="flex items-center gap-3 p-3 bg-slate-900 hover:bg-slate-800/80 rounded-lg border border-gray-800 text-left transition-all text-xs"
+                    >
+                      <Search className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-gray-200 font-mono">Análise de Sites</div>
+                        <div className="text-[10px] text-gray-400">Verificar links, Phishing e golpes</div>
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => useTemplate('profile')}
+                      className="flex items-center gap-3 p-3 bg-slate-900 hover:bg-slate-800/80 rounded-lg border border-gray-800 text-left transition-all text-xs"
+                    >
+                      <UserX className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-gray-200 font-mono">Análise de Perfis</div>
+                        <div className="text-[10px] text-gray-400">Detectar bots e fakes</div>
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => useTemplate('code')}
+                      className="flex items-center gap-3 p-3 bg-slate-900 hover:bg-slate-800/80 rounded-lg border border-gray-800 text-left transition-all text-xs"
+                    >
+                      <Code className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-gray-200 font-mono">Análise Técnica</div>
+                        <div className="text-[10px] text-gray-400">Revisar códigos e scripts</div>
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => useTemplate('context')}
+                      className="flex items-center gap-3 p-3 bg-slate-900 hover:bg-slate-800/80 rounded-lg border border-gray-800 text-left transition-all text-xs"
+                    >
+                      <AlertTriangle className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-gray-200 font-mono">Investigação Geral</div>
+                        <div className="text-[10px] text-gray-400">Cruzamento lógico de dados</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-800 pt-4">
+                  <h3 className="text-xs font-bold text-gray-400 font-mono tracking-wider uppercase mb-3 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-cyan-500" />
+                    Parâmetros Ativos
+                  </h3>
+                  <div className="bg-slate-950 p-3 rounded border border-gray-800 text-[10px] font-mono space-y-2 text-gray-400">
+                    <div className="flex justify-between">
+                      <span>Profundidade:</span>
+                      <span className="text-cyan-400">Forense Completa</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Validador de golpes:</span>
+                      <span className="text-cyan-400">Ativo</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Módulos OSINT:</span>
+                      <span className="text-cyan-400">60 Disponíveis</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Zoom do Console:</span>
+                      <span className="text-cyan-400">85% (Compacto)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    onClick={exportCurrentInvestigation}
+                    className="w-full py-2.5 px-3 bg-slate-950 border border-gray-800 rounded hover:bg-slate-900 transition-all font-mono text-xs flex items-center justify-center gap-2 text-gray-300"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Exportar Relatório TXT
+                  </button>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-gray-400 font-mono tracking-wider uppercase mb-1">
+                  Casos de Hoje
+                </h3>
+                {history.length === 0 ? (
+                  <p className="text-xs text-gray-500 font-mono italic">Nenhum caso analisado nesta sessão.</p>
+                ) : (
+                  history.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => loadHistoryItem(item)}
+                      className="w-full p-2.5 bg-slate-900 hover:bg-slate-800 border border-gray-800 rounded text-left transition-all text-xs font-mono flex flex-col gap-1 text-gray-300"
+                    >
+                      <div className="text-cyan-400 font-bold truncate">{item.title}</div>
+                      <div className="text-[9px] text-gray-500">{item.date}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'about' && (
+              <div className="space-y-4 font-mono text-xs text-gray-400 leading-relaxed">
+                <div>
+                  <h4 className="text-gray-200 font-bold mb-1">Como usar este terminal?</h4>
+                  <p>Escreva o link, código, telefone ou e-mail que deseja rastrear. Use o menu de três pontos no topo para selecionar uma entre as 60 ferramentas OSINT para guiar sua investigação de maneira profunda.</p>
+                </div>
+                <div>
+                  <h4 className="text-gray-200 font-bold mb-1">Evidências de Fraude Comuns</h4>
+                  <p>Sites criados recentemente, faturamento estranho, erros de grafia no domínio, propostas urgentes de ganhos rápidos com tarefas online.</p>
+                </div>
+                <div className="border-t border-gray-800 pt-3 text-[10px]">
+                  <p className="text-red-500">Aviso legal: O Sherlock-GPT é uma ferramenta de análise investigativa complementar baseada em fontes abertas. Use com discernimento ético.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar Footer button */}
+          <div className="p-3 border-t border-gray-800 bg-[#0b101d]">
+            <button 
+              onClick={() => setShowClearConfirm(true)}
+              className="w-full py-2 px-3 text-red-400 border border-red-950/40 hover:bg-red-950/20 rounded transition-all font-mono text-xs flex items-center justify-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Limpar Logs
+            </button>
+          </div>
+        </aside>
+
+        {/* Main Terminal Chat Area */}
+        <main className="flex-1 flex flex-col bg-[#080d1a] relative">
+          
+          {/* Status/Notification Banner */}
+          {statusNotification && (
+            <div className="absolute top-12 left-1/2 transform -translate-x-1/2 bg-cyan-950 border border-cyan-500 text-cyan-300 px-4 py-2 rounded-md text-xs font-mono shadow-2xl z-50 animate-bounce">
+              {statusNotification}
+            </div>
+          )}
+
+          {/* Terminal Shell Header */}
+          <div className="bg-[#0b1222] border-b border-gray-800 px-4 py-2 flex justify-between items-center text-xs font-mono">
+            <span className="text-cyan-400 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></span>
+              CORE_SHELL://INVESTIGATION_TERMINAL
+            </span>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsOsintHubOpen(true)}
+                className="flex items-center gap-1.5 bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 px-3 py-1 rounded text-cyan-400 text-[10px] md:text-xs font-bold transition-all"
+                title="Abrir Central OSINT"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Módulos OSINT
+              </button>
+              <button 
+                onClick={() => setIsOsintHubOpen(true)}
+                className="p-1 text-gray-400 hover:text-white rounded hover:bg-slate-800 transition-all"
+                title="Selecionar Funcionalidade OSINT"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Message log */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            {messages.map((m) => (
+              <div 
+                key={m.id} 
+                className={`flex gap-3 md:gap-4 max-w-4xl ${m.role === 'user' ? 'ml-auto' : 'mr-auto'}`}
+              >
+                {/* Avatar */}
+                <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 border font-mono font-bold text-xs ${
+                  m.role === 'user' 
+                    ? 'bg-cyan-950 border-cyan-500/30 text-cyan-400 order-2' 
+                    : 'bg-slate-900 border-gray-700 text-gray-200'
+                }`}>
+                  {m.role === 'user' ? 'INV' : 'AI'}
+                </div>
+
+                {/* Bubble content */}
+                <div className={`p-4 rounded-lg border text-sm flex-1 ${
+                  m.role === 'user'
+                    ? 'bg-[#0f213a] border-cyan-950 text-cyan-100 font-mono text-xs md:text-sm'
+                    : 'bg-[#0c1324] border-gray-800 text-gray-200'
+                }`}>
+                  <div className="flex justify-between items-center mb-2 border-b border-gray-800/50 pb-1.5 text-[10px] font-mono text-gray-500">
+                    <span>{m.role === 'user' ? 'REQUISITANTE' : 'SISTEMA DE ANÁLISE'}</span>
+                    <span>{m.timestamp}</span>
+                  </div>
+                  
+                  {/* Content logic */}
+                  <div className="space-y-1">
+                    {m.role === 'user' ? (
+                      <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm leading-relaxed text-cyan-200">{m.content}</pre>
+                    ) : (
+                      <div className="prose prose-invert max-w-none">
+                        {renderMarkdown(m.content)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Loading Indicator */}
+            {loading && (
+              <div className="flex gap-4 max-w-lg mr-auto">
+                <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 bg-cyan-950 border border-cyan-500/30 animate-pulse">
+                  <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
+                </div>
+                <div className="bg-[#0b1222] border border-cyan-900/40 p-4 rounded-lg flex-1">
+                  <div className="flex items-center gap-3 font-mono text-xs text-cyan-400 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span>PROCESSANDO EVIDÊNCIAS...</span>
+                  </div>
+                  <div className="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-cyan-500 h-full w-1/2 animate-[pulse_1s_infinite] rounded-full"></div>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-2 font-mono">Buscando indicadores suspeitos, comparando padrões de dados e verificando vulnerabilidades...</p>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick Input Toolbar */}
+          <div className="px-4 py-2 bg-[#0a1020] border-t border-gray-800 flex gap-2 overflow-x-auto text-xs font-mono scrollbar-none">
+            <span className="text-gray-500 shrink-0 self-center">Insira rápido:</span>
+            <button 
+              onClick={() => setInput(prev => prev + " Link suspeito: ")}
+              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 rounded border border-gray-800 text-[10px] text-cyan-400 hover:border-cyan-500/20 shrink-0"
+            >
+              + Link
+            </button>
+            <button 
+              onClick={() => setInput(prev => prev + " Perfil suspeito no Telegram/Instagram: ")}
+              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 rounded border border-gray-800 text-[10px] text-cyan-400 hover:border-cyan-500/20 shrink-0"
+            >
+              + Perfil
+            </button>
+            <button 
+              onClick={() => setInput(prev => prev + " Analisar este script Python/JS: ")}
+              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 rounded border border-gray-800 text-[10px] text-cyan-400 hover:border-cyan-500/20 shrink-0"
+            >
+              + Script
+            </button>
+            <button 
+              onClick={() => setInput(prev => prev + " Quais os riscos desse tipo de proposta financeira? ")}
+              className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 rounded border border-gray-800 text-[10px] text-cyan-400 hover:border-cyan-500/20 shrink-0"
+            >
+              + Risco Financeiro
+            </button>
+          </div>
+
+          {/* Input Panel */}
+          <div className="p-4 bg-[#0d1426] border-t border-gray-800">
+            <div className="flex gap-2 max-w-6xl mx-auto">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Insira os dados, links, telefones, ou use os módulos OSINT clicando nos 3 pontos acima..."
+                className="flex-1 bg-[#060a14] border border-gray-800 rounded-lg p-3 text-xs md:text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-cyan-500/40 font-mono resize-none h-12 md:h-16"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={loading || !input.trim()}
+                className="bg-cyan-950 border border-cyan-500/40 hover:bg-cyan-900 text-cyan-400 px-4 rounded-lg flex flex-col items-center justify-center transition-all disabled:opacity-50 disabled:hover:bg-cyan-950 font-mono text-[10px] md:text-xs shrink-0 w-16"
+              >
+                <Send className="w-4 h-4 mb-1" />
+                ENVIAR
+              </button>
+            </div>
+            <div className="flex justify-between max-w-6xl mx-auto mt-2 text-[9px] text-gray-600 font-mono">
+              <span>* Pressione Enter para enviar. Shift + Enter para quebrar linha.</span>
+              <span>Todos os dados são analisados sob as diretrizes de cibersegurança.</span>
+            </div>
+          </div>
+
+        </main>
+      </div>
+
+      {/* MODAL: Central OSINT (60 Funcionalidades) */}
+      {isOsintHubOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0b1224] border border-cyan-500/30 w-full max-w-4xl h-[85vh] rounded-xl flex flex-col overflow-hidden shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="bg-[#0e172e] p-4 border-b border-gray-800 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <h2 className="text-sm md:text-base font-bold font-mono tracking-wider text-gray-100 uppercase">
+                    CENTRAL OSINT FORENSE (60 Módulos)
+                  </h2>
+                  <p className="text-[10px] text-gray-400 font-mono">Selecione uma técnica especializada para instruir o console investigativo</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsOsintHubOpen(false)}
+                className="text-gray-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Sub-Header (Filtros e Busca) */}
+            <div className="p-4 bg-[#0d1428] border-b border-gray-800 flex flex-col sm:flex-row gap-3 items-center justify-between">
+              
+              {/* Search input */}
+              <div className="relative w-full sm:w-72">
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar protocolo ou módulo..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-[#050812] border border-gray-800 rounded px-3 py-1.5 pl-8 text-xs font-mono text-gray-200 placeholder-gray-500 focus:outline-none focus:border-cyan-500/30"
+                />
+                <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-2.5" />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm('')} className="absolute right-2 top-2 text-gray-400 hover:text-white text-xs font-bold">✕</button>
+                )}
+              </div>
+
+              {/* Category tabs */}
+              <div className="flex gap-1 overflow-x-auto w-full sm:w-auto scrollbar-none pb-1 sm:pb-0">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-2 py-1 text-[10px] font-mono rounded transition-all whitespace-nowrap border ${
+                      selectedCategory === cat 
+                        ? 'bg-cyan-950 text-cyan-400 border-cyan-500/30' 
+                        : 'bg-slate-900 text-gray-400 border-transparent hover:bg-slate-800'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tools Grid Area */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#070b16]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredTools.length > 0 ? (
+                  filteredTools.map((tool) => {
+                    const ToolIcon = tool.icon || HelpCircle;
+                    return (
+                      <button
+                        key={tool.id}
+                        onClick={() => selectOsintTool(tool)}
+                        className="p-3 bg-[#0a0f1d] hover:bg-slate-900/90 rounded-lg border border-gray-800/80 hover:border-cyan-500/30 text-left transition-all flex items-start gap-3 group relative overflow-hidden"
+                      >
+                        <div className="bg-slate-900 p-2 rounded border border-gray-800 group-hover:bg-cyan-950 group-hover:border-cyan-800/50 transition-all shrink-0">
+                          <ToolIcon className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-900 text-gray-400 font-mono font-bold border border-gray-800">
+                              {tool.cat.toUpperCase()}
+                            </span>
+                            <span className="text-[8px] text-gray-600 font-mono">ID: {tool.id.toString().padStart(2, '0')}</span>
+                          </div>
+                          <h4 className="font-bold text-xs font-mono text-gray-200 group-hover:text-cyan-400 transition-colors truncate">
+                            {tool.name}
+                          </h4>
+                          <p className="text-[10px] text-gray-400 leading-normal mt-1 line-clamp-2">
+                            {tool.desc}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-full py-12 text-center text-xs font-mono text-gray-500">
+                    Nenhum protocolo OSINT encontrado com os filtros atuais.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer status */}
+            <div className="bg-[#0e172e] p-3 border-t border-gray-800 flex justify-between items-center text-[10px] font-mono text-gray-500">
+              <span>Módulos carregados: {osintTools.length} / 60</span>
+              <span className="text-cyan-500">Sherlock OSINT framework v4.1</span>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Limpar Logs Confirmação */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0b1224] border border-red-500/30 w-full max-w-sm rounded-lg overflow-hidden shadow-2xl">
+            <div className="p-4 bg-[#0e172e] border-b border-gray-800 flex items-center gap-2 text-red-400">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-bold font-mono text-xs uppercase tracking-wider">APAGAR CONSOLE?</h3>
+            </div>
+            <div className="p-4 text-xs font-mono text-gray-300 leading-relaxed">
+              Esta ação apagará de maneira permanente todo o histórico de logs da sua investigação atual. Deseja prosseguir com o reset?
+            </div>
+            <div className="p-3 bg-slate-950/50 flex gap-2 justify-end border-t border-gray-800">
+              <button 
+                onClick={() => setShowClearConfirm(false)}
+                className="px-3 py-1.5 bg-slate-900 border border-gray-800 rounded text-xs font-mono text-gray-400 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={clearChatConfirmed}
+                className="px-3 py-1.5 bg-red-950 text-red-400 border border-red-800 rounded text-xs font-mono hover:bg-red-900 hover:text-white"
+              >
+                Apagar Tudo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Styled utilities injection */}
+      <style>{`
+        .pulse-glow {
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+          animation: border-pulse 2s infinite ease-in-out;
+        }
+        @keyframes border-pulse {
+          0%, 100% { border-color: rgba(239, 68, 68, 0.5); }
+          50% { border-color: rgba(239, 68, 68, 0.9); }
+        }
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-none {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
+  );
+}
